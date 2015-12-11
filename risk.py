@@ -68,6 +68,55 @@ continent_bonus = {
     'oceania': 2
 }
 
+locations = { 
+    'kamchatka': [1510, 150],
+    'yakutsk': [1390, 135],
+    'siberia': [1260, 200],
+    'ural': [1170, 270],
+    'irkutsk': [1360, 280],
+    'mongolia': [1360, 395],
+    'japan': [1530, 395],
+    'china': [1330, 510],
+    'afghanistan': [1140, 430],
+    'india': [1225, 580],
+    'siam': [1355, 630],
+    'middle-east': [1050, 560],
+    
+    'eastern-australia': [1540, 920],
+    'indonesia': [1355, 800],
+    'new-guinea':  [1500, 760],
+    'western-australia': [1445, 970],
+    
+    'madagascar': [1060, 970],
+    'south-africa': [930, 960],
+    'congo': [910, 830],
+    'east-africa': [985, 750],
+    'north-africa': [805, 683],
+    'egypt': [910, 640],
+    
+    'russia': [1010, 290],
+    'scandinavia': [880, 200],
+    'southern-europe': [860, 470],
+    'northern-europe': [855, 385],
+    
+    'venezuela': [430, 630],
+    'alaska': [135, 180],
+    'northern-territory': [300, 180],
+    'alberta': [270, 260],
+    'mexico' : [270, 500],
+    'ontario' : [390, 280],
+    'greenland' : [600, 120],
+    'quebec' : [500, 290],
+    'eastern-united-states' : [400, 420],
+    'western-united-states' : [280, 400],
+    'brazil' : [550, 730],
+    'peru' : [450, 770],
+    'argentina' : [470, 890],
+    'iceland' : [740, 230],
+    'great-britain' : [700, 350],
+    'western-europe' : [720, 540]
+}
+
 class region (object):
     def __init__(self, name):
         self.name = name
@@ -78,6 +127,9 @@ class region (object):
         for c, regions in continents.items():
             if self.name in regions: return c
         raise Exception('no continent defined for region {r}'.format(r=self.name))
+    def location(self):
+        global locations
+        return locations[self.name]
     def neighbors(self):
         global graph
         return graph[self.name]
