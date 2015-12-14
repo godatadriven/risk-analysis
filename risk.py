@@ -1,3 +1,6 @@
+import os, random, math, copy
+import matplotlib.pyplot as plt
+
 graph = {
     # North America
     'alaska': ['northwest-territory', 'alberta', 'kamchatka'],
@@ -94,16 +97,16 @@ locations = {
     'north-africa': [805, 683],
     'egypt': [910, 640],
     
-    'russia': [1010, 290],
+    'ukraine': [1010, 290],
     'scandinavia': [880, 200],
     'southern-europe': [860, 470],
     'northern-europe': [855, 385],
     
     'venezuela': [430, 630],
     'alaska': [135, 180],
-    'northern-territory': [300, 180],
+    'northwest-territory': [300, 180],
     'alberta': [270, 260],
-    'mexico' : [270, 500],
+    'central-america' : [270, 500],
     'ontario' : [390, 280],
     'greenland' : [600, 120],
     'quebec' : [500, 290],
@@ -117,7 +120,7 @@ locations = {
     'western-europe' : [720, 540]
 }
 
-class region (object):
+class Region (object):
     def __init__(self, name):
         self.name = name
     def __repr__(self):
@@ -134,6 +137,84 @@ class region (object):
         global graph
         return graph[self.name]
     
-def regions():
-    global graph
-    return [region(r) for r in graph.keys()]
+class Allocation (object):
+    all_regions = set([Region(r) for r in graph.keys()])
+    def __init__(self, regions=[]):
+        if isinstance(regions, int):
+            self.sample(n=regions)
+        elif isinstance(regions, Allocation):
+            self.regions = copy.copy(regions.regions)
+        else:
+            self.regions = set(regions)
+    
+    def __repr__(self):
+        return 'Allocation({s})'.format(s=self.regions)
+    
+    def __size__(self):
+        return len(self.regions)
+    
+    def contains(self, region):
+        return region in self.regions
+    
+    def opposite(self):
+        return Allocation(self.all_regions.difference(self.regions))
+    
+    def sample(self, n=21):
+        self.regions = set(random.sample(self.all_regions, n))
+        
+    def choose(self, opposite=False):
+        sample = self.opposite() if opposite else self
+        return random.choice(list(sample.regions))
+    
+    def swap(self):
+        added = self.choose(opposite=True)
+        removed = self.choose()
+        self.regions.remove(removed)
+        self.regions.add(added)
+    
+    def new_armies(self):
+        global continent_bonus
+        retval = max(3, int(math.floor(len(self.regions)/3)))
+        for continent in self.full_continents():
+            retval += continent_bonus[continent]
+        return retval
+    
+    def full_continents(self):
+        global continents
+        retval = [ ]
+        for continent, regions in continents.items():
+            n_regions = len(regions)
+            n_my_regions = len([r for r in self.regions if r.continent() == continent])
+            if n_regions == (n_my_regions):
+                retval.append(continent)
+        return retval
+    
+    def safe_nodes(self):
+        retval = 0
+        for r in self.regions:
+            safe = True
+            for n in r.neighbors():
+                if not n in [x.name for x in self.regions]:
+                    safe = False
+                    break
+            retval += safe
+        return retval
+    
+    def safe_ratio(self):
+        return float(self.safe_nodes()) / (self.opposite().safe_nodes() + 1)
+    def safe_difference(self):
+        return self.safe_nodes() - self.opposite().safe_nodes()
+    def new_difference(self):
+        return self.new_armies() - self.opposite().new_armies()
+
+
+    
+    def plot(self, color='black'):
+        im = plt.imread(os.getcwd() + '/risk.png')
+        plt.figure(figsize = (10,15))
+        implot = plt.imshow(im)
+        for r in self.regions:
+            coor = r.location()
+            plt.scatter([coor[0]], [coor[1]], s = 150, c=color)
+        plt.show()  
+        
