@@ -280,5 +280,5 @@ class Allocation (set):
         for r in self:
             coor = r.location()
             plt.scatter([coor[0]], [coor[1]], s = 150, c=color)
-        plt.show()          
+        return plot
         
