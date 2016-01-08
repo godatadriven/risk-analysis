@@ -219,13 +219,14 @@ class Allocation (set):
     all_continents = set([Continent(x) for x in range(6)])
     all_regions    = set([Region(x) for x in range(42)])
     
-    def __init__(self, a=(), sample=None):
+    def __init__(self, a=(), sample=None, color='black'):
         """ Initialize, either with a random sample, or from an iterable. """
         set.__init__(set())
         if sample is not None:     
             self.sample(sample)
         else:
             self.update(a)
+        self.color = color
     
     def __repr__(self):
         return 'Allocation({l})'.format(l=list(self).__repr__())
@@ -241,13 +242,15 @@ class Allocation (set):
         """ Return a set of all continents on which this Allocation has at least one Region. """
         return set([region.continent() for region in self])
     def copy(self):
-        return Allocation(self)
+        retval = Allocation(self)
+        retval.color = self.color
+        return retval
     def distant(self):
         """ Return an Allocation of all regions which are not in and do not border this Allocation. """
         return self.complement().internal()
     def external(self):
         """ Return all Regions of the Allocation which do border with Regions outside the Allocation. """
-        return self.difference(self.internal())
+        return Allocation(self.difference(self.internal()))
     def full_continents(self):
         """ Return a set of all continents which are fully contained in this Allocation. """
         return self.all_continents.difference(self.complement().continents())
@@ -273,12 +276,69 @@ class Allocation (set):
         """ Randomly construct an allocation of size n. """
         self.clear()
         self.update(random.sample(self.all_regions, n))
-    def plot(self, color='black'):
+    def plot(self):
         im = plt.imread(os.getcwd() + '/risk.png')
         plt.figure(figsize = (10,15))
         implot = plt.imshow(im)
+        self.plot_dots(plt)
+        plt.show()
+    def plot_dots(self, plt):
         for r in self:
             coor = r.location()
-            plt.scatter([coor[0]], [coor[1]], s = 150, c=color)
-        plt.show()          
+            plt.scatter([coor[0]], [coor[1]], s=150, c=self.color)
         
+class Board (object):
+    colors = ['black', 'red', 'yellow', 'green', 'blue', 'pink']
+    def __init__(self, n_allocations=4):
+        self.allocations = [ ]
+        for i in range(n_allocations):
+            self.allocations.append(Allocation(color=self.colors[i]))
+    def copy(self):
+        retval = Board(0)
+        for a in self.allocations:
+            retval.allocations.append(a.copy())
+        return retval
+    def distribute(self):
+        """ Distribute all Regions randomly over all Allocations. """
+        all_regions = set(Allocation.all_regions)
+        i = 0
+        while len(all_regions) > 0:
+            region = random.sample(all_regions, 1)[0]
+            self.allocations[i].add(region)
+            all_regions.remove(region)
+            i += 1
+            if i >= len(self.allocations):
+                i = 0
+    def n_players(self):
+        return len(self.allocations)
+    def owner(self, region):
+        for a in self.allocations:
+            if region in a: return a
+    def player(self, p):
+        if type(p) == str:
+            i = [i for i, c in enumerate(self.colors) if c == p]
+            assert len(i) == 1, 'Player {c} is unknown!'.format(c=p)
+            p = i[0]
+        assert p < len(self.allocations), 'Player {n} is not present on the board!'.format(n=p)
+        return self.allocations[p]
+    
+    def plot(self):
+        im = plt.imread(os.getcwd() + '/risk.png')
+        plt.figure(figsize=(10, 15))
+        implot = plt.imshow(im)
+        for a in self.allocations:
+            a.plot_dots(plt)
+        plt.show()
+        
+    def take(self, player, region):
+        for a in self.allocations:
+            if region in a:
+                a.remove(region)
+        self.player(player).add(region)
+    def shuffle(self):
+        random.shuffle(self.allocations)
+    def winner(self):
+        players = [a for a in self.allocations if len(a) > 0]
+        if len(players) == 1:
+            return players[0].color
+        return None
