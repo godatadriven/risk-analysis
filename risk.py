@@ -240,6 +240,8 @@ class Allocation (set):
     def continents(self):
         """ Return a set of all continents on which this Allocation has at least one Region. """
         return set([region.continent() for region in self])
+    def copy(self):
+        return Allocation(self)
     def distant(self):
         """ Return an Allocation of all regions which are not in and do not border this Allocation. """
         return self.complement().internal()
@@ -255,6 +257,15 @@ class Allocation (set):
     def pick(self):
         """ Randomly pick a Region from the Allocation. """
         return random.choice(list(self)) 
+    def random_swap(self, n_regions=1):
+        """ Randomly remove n regions from the Allocation and add as many. """
+        retval = self.copy()
+        for i in range(n_regions):
+            add_region    = retval.complement().pick()
+            remove_region = retval.pick()
+            retval.add(add_region)
+            retval.remove(remove_region)
+        return retval
     def reinforcements(self):
         """ Calculate the number of reinforcements earned. """
         return max(3, int(math.floor(len(self)/3))) + sum([continent.bonus() for continent in self.full_continents()])
