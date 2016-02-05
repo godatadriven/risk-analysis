@@ -100,8 +100,8 @@ class Board (object):
     def set_armies(self, region_id, n):
         self.df['armies'].iloc[self.df[self.df.region_id == region_id].index.values] = n    
     
-    def add_army(self, region_id):
-        self.set_armies(region_id, self.get_armies(region_id)+1)
+    def add_army(self, region_id, n=1):
+        self.set_armies(region_id, self.get_armies(region_id)+n)
     
     # ======== #
     # Pre-game #
@@ -134,12 +134,41 @@ class Board (object):
         for region in regions:
             self.add_army(region)
         # TODO: redeem cards
+        # if player.whatdoyouwanttoredeem:
+        #     regions = self.pla...
+        #        add army
+        
         
     def attack(self):
         player_id = self.current_player()
         
     def fortify(self):
         pass
+    
+    # ======== #
+    # Topology #
+    # ======== #
+    
+    @staticmethod
+    def continent(continent_id):
+        """ Return all region_ids inside the continent. """
+        return definitions.continent_regions[continent_id]
+    
+    def is_internal(self, region_id):
+        """ Return True if the region only neighbors regions of the same owner. """
+        neighbors = self.neighboring_players(region_id)
+        if len(neighbors) > 1: return False
+        return neighbors[0] == self.df[self.df.region_id == region_id].player_id.values[0]
+    
+    @staticmethod
+    def neighbors(region_id):
+        """ Return the region_ids of the neighbors. """
+        return definitions.region_neighbors[region_id]
+    
+    def neighboring_players(self, region_id):
+        """ Return all players which own a region neighboring this region. """
+        return self.df[self.df.region_id.isin(self.neighbors(region_id))].player_id.unique()
+            
     
     # ======= #
     # General #
@@ -195,7 +224,12 @@ class Board (object):
     def plot_army(cls, row):
         coordinates = cls.location(row.region_id)
         color       = cls.color(row.player_id)
-        plt.scatter([coordinates[0]], [coordinates[1]], s=350, c=color)
+        s = 350
+        if row.armies > 9:
+            s = 700
+        if row.armies > 99:
+            s = 1050
+        plt.scatter([coordinates[0]], [coordinates[1]], s=s, c=color)
         plt.text(coordinates[0], coordinates[1], str(int(row.armies)),
                  fontsize=20, horizontalalignment='center', verticalalignment='center',
                  color='white' if color not in ['yellow', 'pink'] else 'black')
@@ -233,7 +267,7 @@ class Player (object):
         raise Exception('base player cannot play')
     def place(self, b):
         raise Exception('base player cannot play')        
-        
+
 class RandomPlayer (Player):
     
     def attack(self, board):
