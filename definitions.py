@@ -147,3 +147,19 @@ continent_regions = {
      3: [1, 2, 5, 10, 13, 26, 27, 29, 40],
      4: [9, 16, 23, 38],
      5: [3, 4, 28, 37]}
+
+player_colors = {
+     0: 'red',
+     1: 'blue',
+     2: 'green',
+     3: 'yellow',
+     4: 'pink',
+     5: 'black',
+     None: None }
+
+starting_armies = { 
+    2: 40,
+    3: 35,
+    4: 30,
+    5: 25,
+    6: 20 }
