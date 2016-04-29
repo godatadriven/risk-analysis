@@ -82,15 +82,27 @@ class Board (object):
     # Basic methods #
     # ============= #       
     
+    def is_alive(self, player_id):
+        """ Returns True if player is alive. """
+        return any(self.region_df['player_id'] == player_id)
+    
+    @property
     def current_player(self):
         """ Return the player id of the current turn. """
-        return self.turn() % self.n_players() if self.turn() >= 0 else None
+        return self.current_turn % self.n_players() if self.current_turn >= 0 else None
     
     def next_turn(self):
         """ Go to the next turn. """
+        # TODO: logs previous turn
+        # TODO: TEST if any player won
         self.df['turn'] += 1
+        if not self.is_alive(self.current_player):
+            self.next_turn()
+        # TODO: TEST current player is alive
+        # if not player alive: self.next_turn()
     
-    def turn(self):
+    @property
+    def current_turn(self):
         """ Return the current turn number. """
         return self.df.turn.max()
     
@@ -152,10 +164,17 @@ class Board (object):
     # Turn steps #
     # ========== #
     
+    def turn(self):
+        self.place()
+        self.attack()
+        self.fortify()
+        self.next_turn()
+    
     def place(self):
-        player_id = self.current_player()
+        player_id = self.current_player
         n_reinforcements = self.reinforcements(player_id)
         regions = self.player(player_id).place(self, n_reinforcements)
+        assert len(regions) == n_reinforcements, 'Player is cheating!'
         for region in regions:
             self.add_army(region)
         # TODO: redeem cards
@@ -165,7 +184,7 @@ class Board (object):
         
         
     def attack(self):
-        player_id = self.current_player()
+        player_id = self.current_player
         while True:
             attack = self.player(player_id).attack(self)
             if attack is None:
@@ -180,10 +199,9 @@ class Board (object):
     # Topology #
     # ======== #
     
-    @staticmethod
-    def continent(continent_id):
+    def continent(self, continent_id):
         """ Return all region_ids inside the continent. """
-        return definitions.continent_regions[continent_id]
+        return self.region_df[self.region_df.region_id.isin(definitions.continent_regions[continent_id])]
     
     def is_internal(self, region_id):
         """ Return True if the region only neighbors regions of the same owner. """
@@ -227,6 +245,7 @@ class Board (object):
 
     def reinforcements(self, player_id):
         base_reinforcements = max(3, self.n_regions(player_id) / 3)
+        # TODO: calc continent bonus
         return base_reinforcements
     
     def n_armies(self, player_id=None):
@@ -324,9 +343,9 @@ class Board (object):
         plt.text(50, 1000, '\n'.join(text))
         
     def plot_turn(self):
-        turn_text = self.turn() if self.turn() >= 0 else 'pre-game'
+        turn_text = self.current_turn if self.current_turn >= 0 else 'pre-game'
         plt.text(50, 1100, 'Turn: {t} - {c}'.format(t=turn_text,
-                                                    c=self.color(self.current_player())),
+                                                    c=self.color(self.current_player)),
                  fontsize=15)
     
     @property
