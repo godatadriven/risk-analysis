@@ -98,13 +98,13 @@ class Board (object):
         return self.df[self.df['region_id'] == region_id]['player_id'].iloc[0]
 
     def set_owner(self, region_id, player_id):
-        self.df['player_id'].iloc[self.df[self.df.region_id == region_id].index.values] = player_id
+        self.df.set_value(self.df[self.df.region_id == region_id].index.values, 'player_id', player_id)
     
     def get_armies(self, region_id):
         return self.df[self.df['region_id'] == region_id]['armies'].iloc[0]
     
     def set_armies(self, region_id, n):
-        self.df['armies'].iloc[self.df[self.df.region_id == region_id].index.values] = n    
+        self.df.set_value(self.df[self.df.region_id == region_id].index.values, 'armies', n)
     
     def add_army(self, region_id, n=1):
         # TODO: check current player
@@ -349,7 +349,7 @@ class Player (object):
 class RandomPlayer (Player):
     
     def attack(self, board):
-        if random.random() > 0.5:
+        if random.random() > 0.75:
             return None
         possible_attacks = board.possible_attacks(self.player_id)
         if len(possible_attacks) == 0:
