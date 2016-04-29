@@ -187,7 +187,7 @@ class Board (object):
 
     def play_turn(self):
         player = self.player(self.current_player)
-        assert self.is_alive(player), 'Player cannot perform a turn, he is game-over!'
+        assert self.is_alive(player.player_id), 'Player cannot perform a turn, he is game-over!'
         self.place(player)
         self.attack(player)
         self.fortify(player)
