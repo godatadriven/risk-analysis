@@ -82,9 +82,23 @@ class Board (object):
     # Basic methods #
     # ============= #       
     
+    def has_ended(self):
+        return self.winner() is not None
+    
+    def winner(self):
+        for player in self.region_df['player_id'].unique():
+            if self.is_winner(player):
+                return player
+        return None
+        
     def is_alive(self, player_id):
         """ Returns True if player is alive. """
         return any(self.region_df['player_id'] == player_id)
+    
+    def is_winner(self, player_id):
+        """ Return True if player is a winner. """
+        return all(self.region_df['player_id'] == player_id)
+        # TODO: implement missions
     
     @property
     def current_player(self):
@@ -138,7 +152,11 @@ class Board (object):
             self.set_armies(from_region, self.get_armies(from_region)-def_wins)
             self.set_armies(to_region, self.get_armies(to_region)-att_wins)
         
-        
+    def fortify_region(self, from_region, to_region, n_armies):
+        # TODO: check current player
+        # TODO: check n_armies
+        self.set_armies(from_region, self.get_armies(from_region)-n_armies)
+        self.set_armies(to_region, self.get_armies(to_region)+n_armies)        
     
     # ======== #
     # Pre-game #
@@ -193,7 +211,12 @@ class Board (object):
             self.attack_region(from_region, to_region, armies)
         
     def fortify(self):
-        pass
+        player_id = self.current_player
+        fortification = self.player(player_id).fortify(self)
+        if fortification is None:
+            return
+        from_region, to_region, armies = fortification
+        self.fortify_region(from_region, to_region, armies)
     
     # ======== #
     # Topology #
@@ -235,6 +258,12 @@ class Board (object):
                                 (self.neighbor_df.armies > 1) &
                                 (self.neighbor_df.player_id_neighbor != player_id)]
     
+    def possible_fortifications(self, player_id):
+        """ Return a DataFrame listing all possible fortifications of the player. """
+        return self.neighbor_df[(self.neighbor_df.player_id == player_id) &
+                                (self.neighbor_df.armies > 1) &
+                                (self.neighbor_df.player_id_neighbor == player_id)]    
+    
     @staticmethod
     def color(player_id):
         return definitions.player_colors[player_id]
@@ -245,8 +274,11 @@ class Board (object):
 
     def reinforcements(self, player_id):
         base_reinforcements = max(3, self.n_regions(player_id) / 3)
-        # TODO: calc continent bonus
-        return base_reinforcements
+        bonus_reinforcements = 0
+        for continent, bonus in definitions.continent_bonuses.items():
+            if all(self.continent(continent).player_id == player_id):
+                bonus_reinforcements += bonus
+        return base_reinforcements + bonus_reinforcements
     
     def n_armies(self, player_id=None):
         return self._select_regions(player_id=player_id).armies.sum()
@@ -368,16 +400,20 @@ class Player (object):
 class RandomPlayer (Player):
     
     def attack(self, board):
-        if random.random() > 0.75:
+        if random.random() > 0.75 and board.n_armies(self.player_id < 50):
             return None
         possible_attacks = board.possible_attacks(self.player_id)
         if len(possible_attacks) == 0:
             return None
         attack = possible_attacks.sample()
-        print attack['region_id'].iloc[0], attack['region_id_neighbor'].iloc[0], attack['armies'].iloc[0]-1
         return attack['region_id'].iloc[0], attack['region_id_neighbor'].iloc[0], attack['armies'].iloc[0]-1
     def fortify(self, board):
-        pass
+        possible_fortifications = board.possible_fortifications(self.player_id)
+        if len(possible_fortifications) == 0:
+            return None
+        fortification = possible_fortifications.sample()
+        return fortification['region_id'].iloc[0], fortification['region_id_neighbor'].iloc[0], \
+               random.randint(1, fortification['armies'].iloc[0]-1)
     def init(self, board):
         return random.choice(board.regions_of(self.player_id))
     def place(self, board, n):
