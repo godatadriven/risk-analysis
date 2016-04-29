@@ -109,7 +109,7 @@ class Board (object):
     @property
     def current_player(self):
         """ Return the player id of the current turn. """
-        return self.current_turn % self.n_players() if self.current_turn >= 0 else None
+        return self.current_turn % len(self.players) if self.current_turn >= 0 else None
     
     def next_turn(self):
         """ Go to the next turn. """
@@ -289,7 +289,7 @@ class Board (object):
         return self._select_regions(player_id=player_id).armies.sum()
          
     def n_players(self):
-        return self.region_df['player_id'].nunique()
+        return len(self.players)
     
     def n_regions(self, player_id):
         return len(self._select_regions(player_id))
