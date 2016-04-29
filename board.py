@@ -5,6 +5,7 @@ import random
 import uuid
 import definitions
 
+
 class Board (object):
     def __init__(self, df, players):
         self.df      = df
@@ -84,13 +85,13 @@ class Board (object):
     
     def has_ended(self):
         return self.winner() is not None
-    
+
     def winner(self):
         for player in self.region_df['player_id'].unique():
             if self.is_winner(player):
                 return player
         return None
-        
+
     def is_alive(self, player_id):
         """ Returns True if player is alive. """
         return any(self.region_df['player_id'] == player_id)
@@ -99,7 +100,7 @@ class Board (object):
         """ Return True if player is a winner. """
         return all(self.region_df['player_id'] == player_id)
         # TODO: implement missions
-    
+
     @property
     def current_player(self):
         """ Return the player id of the current turn. """
@@ -143,7 +144,6 @@ class Board (object):
         defenders = self.get_armies(to_region)
         att_wins, def_wins = self.fight(attackers, defenders)
 
-
         if self.get_armies(to_region) == att_wins:
             self.set_armies(from_region, self.get_armies(from_region)-n_armies)
             self.set_armies(to_region, n_armies - def_wins)
@@ -156,7 +156,7 @@ class Board (object):
         # TODO: check current player
         # TODO: check n_armies
         self.set_armies(from_region, self.get_armies(from_region)-n_armies)
-        self.set_armies(to_region, self.get_armies(to_region)+n_armies)        
+        self.set_armies(to_region, self.get_armies(to_region)+n_armies)
     
     # ======== #
     # Pre-game #
@@ -241,7 +241,7 @@ class Board (object):
     def hostile_neighbors(self, region_id):
         """ Return the region_ids of neighboring regions which are owned by another player. """
         return self.df[self.df.region_id.isin(self.neighbors(region_id)) &
-                       (self.df.player_id != self.owner(region_id))].region_id.unique()
+                       (self.df.player_id != self.get_owner(region_id))].region_id.unique()
     
     def neighboring_players(self, region_id):
         """ Return all players which own a region neighboring this region. """
@@ -254,16 +254,18 @@ class Board (object):
     
     def possible_attacks(self, player_id):
         """ Return a DataFrame listing all possible attacks of the player. """
-        return self.neighbor_df[(self.neighbor_df.player_id == player_id) &
-                                (self.neighbor_df.armies > 1) &
-                                (self.neighbor_df.player_id_neighbor != player_id)]
+        df = self.neighbor_df
+        return df[(df.player_id == player_id) &
+                  (df.armies > 1) &
+                  (df.player_id_neighbor != player_id)]
     
     def possible_fortifications(self, player_id):
         """ Return a DataFrame listing all possible fortifications of the player. """
-        return self.neighbor_df[(self.neighbor_df.player_id == player_id) &
-                                (self.neighbor_df.armies > 1) &
-                                (self.neighbor_df.player_id_neighbor == player_id)]    
-    
+        df = self.neighbor_df
+        return df[(df.player_id == player_id) &
+                  (df.armies > 1) &
+                  (df.player_id_neighbor == player_id)]
+
     @staticmethod
     def color(player_id):
         return definitions.player_colors[player_id]
@@ -333,7 +335,7 @@ class Board (object):
         
     @staticmethod
     def throw_dice():
-        return random.randint(1,6)
+        return random.randint(1, 6)
                        
     # ======== #
     # Plotting #
