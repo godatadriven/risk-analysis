@@ -47,7 +47,7 @@ class Board (object):
         return pd.DataFrame({
                 'region_id': range(42),
                 'player_id': cls._create_random_allocation(n_players),
-                'armies'   : [0] * 42
+                'armies'   : [1] * 42
                 })
         
     @staticmethod
@@ -364,7 +364,7 @@ class Board (object):
         
     def plot_stats(self):
         text = ['Player: (reg) (arm)']
-        for player_id in sorted(self.df.player_id.unique()):
+        for player_id in sorted(self.region_df.player_id.unique()):
             text.append('{n} {c}: {r} {a}'.format(
                     n=player_id,
                     c=self.color(player_id),
@@ -378,10 +378,7 @@ class Board (object):
         plt.text(50, 1100, 'Turn: {t} - {c}'.format(t=turn_text,
                                                     c=self.color(self.current_player)),
                  fontsize=15)
-    
-    @property
-    def state(self):
-        return self.df.drop('game_id', axis=1)
+
     
 class Player (object):
     
