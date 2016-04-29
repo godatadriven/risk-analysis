@@ -113,8 +113,6 @@ class Board (object):
         self.df['turn'] += 1
         if not self.is_alive(self.current_player):
             self.next_turn()
-        # TODO: TEST current player is alive
-        # if not player alive: self.next_turn()
     
     @property
     def current_turn(self):
@@ -183,15 +181,16 @@ class Board (object):
     # ========== #
     
     def turn(self):
-        self.place()
-        self.attack()
-        self.fortify()
+        player = self.player(self.current_player)
+        assert self.is_alive(player), 'Player cannot perform a turn, he is game-over!'
+        self.place(player)
+        self.attack(player)
+        self.fortify(player)
         self.next_turn()
     
-    def place(self):
-        player_id = self.current_player
-        n_reinforcements = self.reinforcements(player_id)
-        regions = self.player(player_id).place(self, n_reinforcements)
+    def place(self, player):
+        n_reinforcements = self.reinforcements(player.player_id)
+        regions = player.place(self, n_reinforcements)
         assert len(regions) == n_reinforcements, 'Player is cheating!'
         for region in regions:
             self.add_army(region)
@@ -199,20 +198,17 @@ class Board (object):
         # if player.whatdoyouwanttoredeem:
         #     regions = self.pla...
         #        add army
-        
-        
-    def attack(self):
-        player_id = self.current_player
+
+    def attack(self, player):
         while True:
-            attack = self.player(player_id).attack(self)
+            attack = player.attack(self)
             if attack is None:
                 return
             from_region, to_region, armies = attack
             self.attack_region(from_region, to_region, armies)
         
-    def fortify(self):
-        player_id = self.current_player
-        fortification = self.player(player_id).fortify(self)
+    def fortify(self, player):
+        fortification = player.fortify(self)
         if fortification is None:
             return
         from_region, to_region, armies = fortification
@@ -229,7 +225,8 @@ class Board (object):
     def is_internal(self, region_id):
         """ Return True if the region only neighbors regions of the same owner. """
         neighbors = self.neighboring_players(region_id)
-        if len(neighbors) > 1: return False
+        if len(neighbors) > 1:
+            return False
         return neighbors[0] == self.df[self.df.region_id == region_id].player_id.values[0]
     
     @staticmethod
@@ -402,13 +399,14 @@ class Player (object):
 class RandomPlayer (Player):
     
     def attack(self, board):
-        if random.random() > 0.75 and board.n_armies(self.player_id < 50):
+        if random.random() > 0.75 and board.n_armies(self.player_id) < 50:
             return None
         possible_attacks = board.possible_attacks(self.player_id)
         if len(possible_attacks) == 0:
             return None
         attack = possible_attacks.sample()
         return attack['region_id'].iloc[0], attack['region_id_neighbor'].iloc[0], attack['armies'].iloc[0]-1
+
     def fortify(self, board):
         possible_fortifications = board.possible_fortifications(self.player_id)
         if len(possible_fortifications) == 0:
@@ -416,8 +414,10 @@ class RandomPlayer (Player):
         fortification = possible_fortifications.sample()
         return fortification['region_id'].iloc[0], fortification['region_id_neighbor'].iloc[0], \
                random.randint(1, fortification['armies'].iloc[0]-1)
+
     def init(self, board):
         return random.choice(board.regions_of(self.player_id))
+
     def place(self, board, n):
         return [self.init(board) for x in range(n)]
 
