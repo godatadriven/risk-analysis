@@ -7,9 +7,12 @@ import definitions
 
 
 class Board (object):
-    def __init__(self, df, players):
-        self.df      = df
-        self.players = players
+    def __init__(self, region_df, card_df, players, game_id, turn=-1):
+        self.card_df   = card_df
+        self.region_df = region_df
+        self.players   = players
+        self.game_id   = game_id
+        self.turn      = turn
 
     @classmethod
     def create(cls, players, game_id=None):
@@ -24,26 +27,28 @@ class Board (object):
                 A prepared Board. """
         game_id = str(uuid.uuid1()) if game_id is None else game_id
         players = cls._create_players(players)
-        return cls(cls._create_initial_df(game_id, len(players)),
-                   players)
-        
-    @classmethod
-    def _create_initial_df(cls, game_id, n_players):
-        """ Create DataFrame for an initial board. The regions
-            are distributed randomly over the players, and each
-            region gets one army as a start. """
-        n_rows = 42 + n_players
+        return cls(
+                region_df=cls._create_region_df(len(players)),
+                card_df  =cls._create_card_df(len(players)),
+                players  =players,
+                game_id  =game_id)
+     
+    @staticmethod
+    def _create_card_df(n_players):
         return pd.DataFrame({
-            'game_id'    : [game_id]*n_rows,
-            'turn'       : [-1]*n_rows,
-            'event_type' : ['region']*42 + ['card']*n_players,
-            'player_id'  : cls._create_random_allocation(n_players) + range(n_players),
-            'region_id'  : range(42) + [-1]*n_players,
-            'armies'     : [1]*42 + [-1]*n_players,
-            'inf_card'   : [0]*n_rows,
-            'cav_card'   : [0]*n_rows,
-            'can_card'   : [0]*n_rows
-        })
+                'player_id': range(n_players),
+                'infantry' : [0] * n_players,
+                'cavalry'  : [0] * n_players,
+                'artillery': [0] * n_players
+               })
+    
+    @classmethod
+    def _create_region_df(cls, n_players):
+        return pd.DataFrame({
+                'region_id': range(42),
+                'player_id': cls._create_random_allocation(n_players),
+                'armies'   : [0] * 42
+                })
         
     @staticmethod
     def _create_players(players):
@@ -74,7 +79,7 @@ class Board (object):
         return cards[cards.player_id == player_id]
         
     def _select_regions(self, player_id=None):
-        regions = self.df[self.df.event_type == 'region']
+        regions = self.region_df
         if player_id is None:
             return regions
         return regions[regions.player_id == player_id] 
@@ -110,28 +115,27 @@ class Board (object):
         """ Go to the next turn. """
         # TODO: logs previous turn
         # TODO: TEST if any player won
-        self.df['turn'] += 1
+        self.turn += 1
         if not self.is_alive(self.current_player):
             self.next_turn()
         # TODO: TEST current player is alive
         # if not player alive: self.next_turn()
-    
+        
     @property
     def current_turn(self):
-        """ Return the current turn number. """
-        return self.df.turn.max()
+        return self.turn
     
     def get_owner(self, region_id):
-        return self.df[self.df['region_id'] == region_id]['player_id'].iloc[0]
+        return self.region_df[self.region_df['region_id'] == region_id]['player_id'].iloc[0]
 
     def set_owner(self, region_id, player_id):
-        self.df.set_value(self.df[self.df.region_id == region_id].index.values, 'player_id', player_id)
+        self.region_df.set_value(self.region_df[self.region_df.region_id == region_id].index.values, 'player_id', player_id)
     
     def get_armies(self, region_id):
-        return self.df[self.df['region_id'] == region_id]['armies'].iloc[0]
+        return self.region_df[self.region_df['region_id'] == region_id]['armies'].iloc[0]
     
     def set_armies(self, region_id, n):
-        self.df.set_value(self.df[self.df.region_id == region_id].index.values, 'armies', n)
+        self.region_df.set_value(self.region_df[self.region_df.region_id == region_id].index.values, 'armies', n)
     
     def add_army(self, region_id, n=1):
         # TODO: check current player
@@ -182,7 +186,7 @@ class Board (object):
     # Turn steps #
     # ========== #
     
-    def turn(self):
+    def play_turn(self):
         self.place()
         self.attack()
         self.fortify()
@@ -230,7 +234,7 @@ class Board (object):
         """ Return True if the region only neighbors regions of the same owner. """
         neighbors = self.neighboring_players(region_id)
         if len(neighbors) > 1: return False
-        return neighbors[0] == self.df[self.df.region_id == region_id].player_id.values[0]
+        return neighbors[0] == self.region_df[self.region_df.region_id == region_id].player_id.values[0]
     
     @staticmethod
     def neighbors(region_id):
@@ -286,7 +290,7 @@ class Board (object):
         return self._select_regions(player_id=player_id).armies.sum()
          
     def n_players(self):
-        return self.df['player_id'].nunique()
+        return self.region_df['player_id'].nunique()
     
     def n_regions(self, player_id):
         return len(self._select_regions(player_id))
@@ -296,8 +300,7 @@ class Board (object):
     
     def regions_of(self, pid=None):
         """ Return an array of all regions owner by player pid. """
-        return self.df[(self.df.player_id == pid) &
-                       (self.df.event_type == 'region')].region_id.values
+        return self.region_df[(self.region_df.player_id == pid)].region_id.values
 
     def player(self, player_id):
         return self.players[player_id]
@@ -305,11 +308,6 @@ class Board (object):
     # ========== #
     # DataFrames #
     # ========== # 
-    
-    @property
-    def region_df(self):
-        """ Return a DataFrame with only the region info. """
-        return self.df[self.df.event_type == 'region'][['region_id', 'player_id', 'armies']]
     
     @property
     def neighbor_df(self):
@@ -366,7 +364,7 @@ class Board (object):
                  color='white' if color not in ['yellow', 'pink'] else 'black')
         
     def plot_stats(self):
-        text = ['Plyr: (reg) (arm)']
+        text = ['Player: (reg) (arm)']
         for player_id in sorted(self.df.player_id.unique()):
             text.append('{n} {c}: {r} {a}'.format(
                     n=player_id,
