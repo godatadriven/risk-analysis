@@ -1,3 +1,5 @@
+import pandas as pd
+
 region_names = {
      0: 'afghanistan',
      1: 'alaska',
@@ -129,6 +131,11 @@ region_locations = {
      39: [720, 540],
      40: [280, 400],
      41: [1390, 135]}
+
+region_neighbors_df = pd.DataFrame(
+    [(region, neighbor) for region, neighbors in region_neighbors.items() for neighbor in neighbors],
+    columns=['region_id', 'neighbor_id']
+)
 
 continent_names = {
      0: 'africa',
