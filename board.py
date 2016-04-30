@@ -40,7 +40,7 @@ class Board (object):
                 'infantry' : [0] * n_players,
                 'cavalry'  : [0] * n_players,
                 'artillery': [0] * n_players
-               })
+               }).set_index('player_id')
     
     @classmethod
     def _create_region_df(cls, n_players):
@@ -48,7 +48,7 @@ class Board (object):
                 'region_id': range(42),
                 'player_id': cls._create_random_allocation(n_players),
                 'armies'   : [1] * 42
-                })
+                }).set_index('region_id')
         
     @staticmethod
     def _create_players(players):
@@ -71,18 +71,9 @@ class Board (object):
     # ========== #
     # DF methods #
     # ========== #
-    
-    def _select_cards(self, player_id=None):
-        cards = self.df[self.df.event_type == 'card']
-        if player_id is None:
-            return cards
-        return cards[cards.player_id == player_id]
         
-    def _select_regions(self, player_id=None):
-        regions = self.region_df
-        if player_id is None:
-            return regions
-        return regions[regions.player_id == player_id] 
+    def _select_regions(self, player_id):
+        return self.region_df[self.region_df.player_id == player_id]
 
     # ============= #
     # Basic methods #
@@ -124,16 +115,16 @@ class Board (object):
         return self.turn
     
     def get_owner(self, region_id):
-        return self.region_df[self.region_df['region_id'] == region_id]['player_id'].iloc[0]
+        return self.region_df.loc[region_id]['player_id']
 
     def set_owner(self, region_id, player_id):
-        self.region_df.set_value(self.region_df[self.region_df.region_id == region_id].index.values, 'player_id', player_id)
+        self.region_df.set_value(region_id, 'player_id', player_id)
     
     def get_armies(self, region_id):
-        return self.region_df[self.region_df['region_id'] == region_id]['armies'].iloc[0]
+        return self.region_df.loc[region_id]['armies']
     
     def set_armies(self, region_id, n):
-        self.region_df.set_value(self.region_df[self.region_df.region_id == region_id].index.values, 'armies', n)
+        self.region_df.set_value(region_id, 'armies', n)
     
     def add_army(self, region_id, n=1):
         # TODO: check current player
@@ -225,14 +216,14 @@ class Board (object):
     
     def continent(self, continent_id):
         """ Return all region_ids inside the continent. """
-        return self.region_df[self.region_df.region_id.isin(definitions.continent_regions[continent_id])]
+        return self.region_df[self.region_df.index.isin(definitions.continent_regions[continent_id])]
     
     def is_internal(self, region_id):
         """ Return True if the region only neighbors regions of the same owner. """
         neighbors = self.neighboring_players(region_id)
         if len(neighbors) > 1: 
             return False
-        return neighbors[0] == self.region_df[self.region_df.region_id == region_id].player_id.values[0]
+        return neighbors[0] == self.region_df.loc(region_id).player_id.values[0]
 
     
     @staticmethod
@@ -241,14 +232,14 @@ class Board (object):
         return definitions.region_neighbors[region_id]
     
     
-    def hostile_neighbors(self, region_id):
-        """ Return the region_ids of neighboring regions which are owned by another player. """
-        return self.df[self.df.region_id.isin(self.neighbors(region_id)) &
-                       (self.df.player_id != self.get_owner(region_id))].region_id.unique()
+    #def hostile_neighbors(self, region_id):
+    #    """ Return the region_ids of neighboring regions which are owned by another player. """
+    #    return self.df[self.df.region_id.isin(self.neighbors(region_id)) &
+    #                   (self.df.player_id != self.get_owner(region_id))].region_id.unique()
     
-    def neighboring_players(self, region_id):
-        """ Return all players which own a region neighboring this region. """
-        return self.df[self.df.region_id.isin(self.neighbors(region_id))].player_id.unique()
+    #def neighboring_players(self, region_id):
+    #    """ Return all players which own a region neighboring this region. """
+    #    return self.df[self.df.region_id.isin(self.neighbors(region_id))].player_id.unique()
             
     
     # ======= #
@@ -299,7 +290,7 @@ class Board (object):
     
     def regions_of(self, pid=None):
         """ Return an array of all regions owner by player pid. """
-        return self.region_df[(self.region_df.player_id == pid)].region_id.values
+        return self.region_df[(self.region_df.player_id == pid)].index.values
 
     def player(self, player_id):
         return self.players[player_id]
@@ -312,10 +303,10 @@ class Board (object):
     def neighbor_df(self):
         """ Return a DataFrame with region info of each region merged with its neighbors. """
         return self.region_df.merge(
-                   definitions.region_neighbors_df, on='region_id'
+                   definitions.region_neighbors_df, left_index=True, right_on='region_id'
                ).merge(
-                   self.region_df, left_on='neighbor_id', right_on='region_id', suffixes=('', '_neighbor')
-               ).drop('neighbor_id', axis=1)
+                   self.region_df, left_on='neighbor_id', right_index=True, suffixes=('', '_neighbor')
+               )
  
     # ======== #
     # Fighting #
@@ -342,15 +333,15 @@ class Board (object):
         im = plt.imread(os.getcwd() + '/risk.png')
         plt.figure(figsize=(10, 15))
         implot = plt.imshow(im)
-        for i, r in self._select_regions().iterrows():
-            self.plot_army(r)          
+        for i, r in self.region_df.iterrows():
+            self.plot_army(i, r)          
         if turn: self.plot_turn()
         if stats: self.plot_stats()
         plt.show() 
        
     @classmethod
-    def plot_army(cls, row):
-        coordinates = cls.location(row.region_id)
+    def plot_army(cls, index, row):
+        coordinates = cls.location(index)
         color       = cls.color(row.player_id)
         s = 350
         if row.armies > 9:
@@ -402,14 +393,14 @@ class RandomPlayer (Player):
         if len(possible_attacks) == 0:
             return None
         attack = possible_attacks.sample()
-        return attack['region_id'].iloc[0], attack['region_id_neighbor'].iloc[0], attack['armies'].iloc[0]-1
+        return attack['region_id'].iloc[0], attack['neighbor_id'].iloc[0], attack['armies'].iloc[0]-1
 
     def fortify(self, board):
         possible_fortifications = board.possible_fortifications(self.player_id)
         if len(possible_fortifications) == 0:
             return None
         fortification = possible_fortifications.sample()
-        return fortification['region_id'].iloc[0], fortification['region_id_neighbor'].iloc[0], \
+        return fortification['region_id'].iloc[0], fortification['neighbor_id'].iloc[0], \
                random.randint(1, fortification['armies'].iloc[0]-1)
 
     def init(self, board):
