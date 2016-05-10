@@ -6,7 +6,9 @@ class Mission (object):
         self.player_id = None
          
     def __repr__(self):
-        return 'Mission(void)'
+        return 'Mission("{dscr}", {p})'.format(
+            dscr=self.description, p='assigned to '+definitions.player_colors[self.player_id] if 
+            self.player_id is not None else 'unassigned')
     
     def assign_to(self, player_id):
         """ Assign the mission to a player.
@@ -14,6 +16,10 @@ class Mission (object):
             Args:
                 player_id (int): ID of the player to assign to. """
         self.player_id = player_id
+        
+    @property
+    def description(self):
+        return 'void'
     
     def evaluate(self, board):
         """ Evaluate whether the mission has been achieved.
@@ -52,8 +58,9 @@ class Mission (object):
 
 class BaseMission (Mission):
     
-    def __repr__(self):
-        return 'Mission("conquer at least 24 territories")'
+    @property
+    def description(self):
+        return 'conquer at least 24 territories'
     
     def _evaluate(self, board):
         return board.n_territories(self.player_id) >= 24
@@ -63,8 +70,9 @@ class BaseMission (Mission):
         
 class TerritoryMission (Mission):
         
-    def __repr__(self):
-        return 'Mission("conquer at least 18 territories and have at least 2 armies on each territory")'
+    @property
+    def description(self):
+        return 'conquer at least 18 territories and have at least 2 armies on each territory'
 
     @property
     def double_occupancy(self):
@@ -92,11 +100,12 @@ class PlayerMission (BaseMission):
         super(PlayerMission, self).__init__()
         self.target_id = target_id
         
-    def __repr__(self):
+    @property
+    def description(self):
         if self.target_id == self.player_id:
-            return 'Mission("fallback: conquer at least 24 territories")'
+            return 'fallback: conquer at least 24 territories'
         else:
-            return 'Mission("eliminate the {color} player")'.format(color=definitions.player_colors[self.target_id])
+            return 'eliminate the {color} player'.format(color=definitions.player_colors[self.target_id])
     
     def _evaluate(self, board):
         if self.target_id == self.player_id:
@@ -120,8 +129,9 @@ class ContinentMission (Mission):
         super(ContinentMission, self).__init__()
         self.continents    = continents
         
-    def __repr__(self):
-        return 'Mission("conquer {continents}")'.format(
+    @property
+    def description(self):
+        return 'conquer {continents}'.format(
             continents=' and '.join([definitions.continent_names[cid] for cid in self.continents])
         )
 
@@ -138,8 +148,9 @@ class ContinentMission (Mission):
 
 class ExtraContinentMission (ContinentMission):
     
-    def __repr__(self):
-        return 'Mission("conquer {continents} and an additional continent of choice")'.format(
+    @property
+    def description(self):
+        return 'conquer {continents} and an additional continent of choice'.format(
             continents=' and '.join([definitions.continent_names[cid] for cid in self.continents]))
     
     def _evaluate(self, board):
