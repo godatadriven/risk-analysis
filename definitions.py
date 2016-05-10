@@ -1,6 +1,6 @@
 import pandas as pd
 
-region_names = {
+territory_names = {
      0: 'afghanistan',
      1: 'alaska',
      2: 'alberta',
@@ -44,7 +44,7 @@ region_names = {
      40: 'western-united-states',
      41: 'yakutsk' }
 
-region_neighbors = {
+territory_neighbors = {
      0: [35, 36, 6, 15, 21],
      1: [26, 2, 19],
      2: [1, 26, 27, 40],
@@ -88,7 +88,7 @@ region_neighbors = {
      40: [2, 5, 10, 27],
      41: [19, 17, 32]}
 
-region_locations = {
+territory_locations = {
      0: [1140, 430],
      1: [135, 180],
      2: [270, 260],
@@ -132,9 +132,9 @@ region_locations = {
      40: [280, 400],
      41: [1390, 135]}
 
-region_neighbors_df = pd.DataFrame(
-    [(region, neighbor) for region, neighbors in region_neighbors.items() for neighbor in neighbors],
-    columns=['region_id', 'neighbor_id']
+territory_neighbors_df = pd.DataFrame(
+    [(territory, neighbor) for territory, neighbors in territory_neighbors.items() for neighbor in neighbors],
+    columns=['territory_id', 'neighbor_id']
 )
 
 continent_names = {
@@ -147,7 +147,7 @@ continent_names = {
 
 continent_bonuses = {0: 3, 1: 7, 2: 5, 3: 5, 4: 2, 5: 2}
 
-continent_regions = {
+continent_territories = {
      0: [7, 8, 11, 20, 24, 33],
      1: [0, 6, 15, 17, 18, 19, 21, 22, 31, 32, 36, 41],
      2: [12, 14, 25, 30, 34, 35, 39],
