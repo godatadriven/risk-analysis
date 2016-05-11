@@ -235,15 +235,30 @@ class Board (object):
             'Board: invalid fortification: territories do not share border.'
         self.add_armies(from_territory, -n_armies)
         self.add_armies(to_territory, +n_armies)
-
-class Player (object):
-    
-    def __init__(self, pid, name=''):
-        assert pid in range(6), '{cls}: invalid player id: {pid}'.format(
-            cls=self.__class__.__name__, pid=pid)
-        self.pid  = pid
-        self.name = name
         
-    @property
-    def color(self):
-        return definitions.player_colors[self.pid]
+    def attack(self, from_territory, to_territory, n_armies):
+        assert self.armies(from_territory) > n_armies, \
+            'Player is using more armies to attack than allowed!'
+        attackers = n_armies
+        defenders = self.armies(to_territory)
+        att_wins, def_wins = fight(attackers, defenders)
+        if self.armies(to_territory) == att_wins:
+            self.add_armies(from_territory, -n_armies)
+            self.set_armies(to_territory, n_armies - def_wins)
+            self.set_owner(to_territory, self.owner(from_territory))
+            return True
+        else:
+            self.add_armies(from_territory, -def_wins)
+            self.add_armies(to_territory, -att_wins)
+        return False
+
+def fight(attackers, defenders):
+    n_attack_dices = min(attackers, 3)
+    n_defend_dices = min(defenders, 2)
+    attack_dices = sorted([throw_dice() for i in range(n_attack_dices)], reverse=True)
+    defend_dices = sorted([throw_dice() for i in range(n_defend_dices)], reverse=True)
+    wins = [att_d > def_d for att_d, def_d in zip(attack_dices, defend_dices)]
+    return len([w for w in wins if w is True]), len([w for w in wins if w is False])   
+    
+def throw_dice():
+    return random.randint(1, 6)  

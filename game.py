@@ -73,14 +73,7 @@ class Game (object):
     def current_player(self):
         return self.players[self.current_player_id] if self.current_player_id is not None else None
 
-    @classmethod
-    def fight(cls, attackers, defenders):
-        n_attack_dices = min(attackers, 3)
-        n_defend_dices = min(defenders, 2)
-        attack_dices = sorted([cls.throw_dice() for i in range(n_attack_dices)], reverse=True)
-        defend_dices = sorted([cls.throw_dice() for i in range(n_defend_dices)], reverse=True)
-        wins = [att_d > def_d for att_d, def_d in zip(attack_dices, defend_dices)]
-        return len([w for w in wins if w is True]), len([w for w in wins if w is False])    
+ 
     
     @property
     def n_players(self):
@@ -99,24 +92,6 @@ class Game (object):
     
     def is_alive(self, player_id):
         return self.board.n_territories(player_id) > 0
- 
-    def perform_attack(self, from_territory, to_territory, n_armies):
-        assert self.current_player_id == self.board.owner(from_territory), \
-            'Player is attacking from a territory he does not own!'
-        assert self.board.armies(from_territory) > n_armies, \
-            'Player is using more armies to attack than allowed!'
-        attackers = n_armies
-        defenders = self.board.armies(to_territory)
-        att_wins, def_wins = self.fight(attackers, defenders)
-        if self.board.armies(to_territory) == att_wins:
-            self.board.add_armies(from_territory, -n_armies)
-            self.board.set_armies(to_territory, n_armies - def_wins)
-            self.board.set_owner(to_territory, self.current_player_id)
-            return True
-        else:
-            self.board.add_armies(from_territory, -def_wins)
-            self.board.add_armies(to_territory, -att_wins)
-        return False
 
     def attack(self, player):
         did_win = False
@@ -124,8 +99,8 @@ class Game (object):
             attack = player.attack(self)
             if attack is None:
                 return
-            from_region, to_region, armies = attack
-            if self.perform_attack(from_region, to_region, armies):
+            # check valid owner
+            if self.board.attack(*attack):
                 did_win = True
         # give card to player
         
@@ -153,9 +128,7 @@ class Game (object):
         self.fortify(player)
         self.next_turn()
 
-    @staticmethod
-    def throw_dice():
-        return random.randint(1, 6)        
+      
         
     @property
     def player_ids(self):
