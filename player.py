@@ -37,8 +37,11 @@ class RandomPlayer (Player):
         fortification = random.choice(possible_fortifications)
         return fortification[0], fortification[2], random.randint(1, fortification[1]-1)
 
-    def init(self, game):
+    def place(self, game):
         return random.choice(list(game.board.territories_of(self.player_id)))
-
-    def place(self, game, n):
-        return [self.init(game) for x in range(n)]
+    
+    def use_cards(self, game):
+        co, obl = game.card_options(self.player_id)
+        if obl or (any(co) and random.random() > 0.5):
+            return random.choice([i for i, x in enumerate(co) if x])
+        return None

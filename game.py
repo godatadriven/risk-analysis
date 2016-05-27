@@ -28,7 +28,7 @@ class Game (object):
     @staticmethod
     def assign_cards(n_players):
         """ Assign reinforcement card placeholders to players. """
-        return [(pid, 0, 0, 0) for pid in range(n_players)]
+        return [[0, 0, 0] for pid in range(n_players)]
     
     @staticmethod
     def assign_missions(n_players):
@@ -58,7 +58,7 @@ class Game (object):
         changed = False
         for player in self.players:
             if self.board.n_armies(player.player_id) < self.starting_armies:
-                territory = player.init(self)
+                territory = player.place(self)
                 self.board.add_armies(territory, 1)
                 changed = True
         return changed
@@ -98,11 +98,12 @@ class Game (object):
         while True:
             attack = player.attack(self)
             if attack is None:
-                return
+                break
             # check valid owner
             if self.board.attack(*attack):
                 did_win = True
-        # give card to player
+        if did_win:
+            self.give_card(player.player_id)
         
     def fortify(self, player):
         fortification = player.fortify(self)
@@ -115,10 +116,13 @@ class Game (object):
         
     def place(self, player):
         n_reinforcements = self.board.reinforcements(player.player_id)
-        territories      = player.place(self, n_reinforcements)
-        assert len(territories) == n_reinforcements, 'Player is cheating!'
-        for tid in territories:
-            self.board.add_armies(tid, 1)
+        for i in range(n_reinforcements):
+            territory_id = player.place(self)
+            self.board.add_armies(territory_id, 1)   
+        n_extra = self.use_cards(player.player_id, player.use_cards(self))
+        for i in range(n_extra):
+            territory_id = player.place(self)
+            self.board.add_armies(territory_id, 1)        
 
     def play_turn(self):
         player = self.current_player
@@ -128,7 +132,42 @@ class Game (object):
         self.fortify(player)
         self.next_turn()
 
-      
+    def give_card(self, player_id):
+        card_type = random.randint(0,2)
+        self.cards = [
+            [(c+1 if ct == card_type else c) for ct, c in enumerate(cards)]
+            if pid == player_id else cards
+            for pid, cards in enumerate(self.cards)
+        ]
+        
+    def card_options(self, player_id):
+        cards = self.cards[player_id]
+        infantry    = cards[0] >= 3
+        cavalry     = cards[1] >= 3
+        artillery   = cards[2] >= 3
+        combination = min(cards) >= 1
+        obligatory  = sum(cards) >= 5
+        return ((infantry, cavalry, artillery, combination), obligatory)
+    
+    def use_cards(self, player_id, combination_id):
+        cards = self.cards[player_id]
+        if combination_id == 0: # infantry, 4 armies
+            cards[0] -= 3
+            retval = 4
+        elif combination_id == 1: # cavalry, 6 armies
+            cards[1] -= 3
+            retval = 6
+        elif combination_id == 2: # artillery, 8 armies
+            cards[2] -= 3
+            retval = 8
+        elif combination_id == 3: # combination, 10 armies
+            for i in range(3):
+                cards[i] -= 1
+            retval = 10
+        else:
+            return 0
+        assert min(cards) >= 0, 'Player is cheating: handing in cards he does not own!'
+        return retval
         
     @property
     def player_ids(self):
