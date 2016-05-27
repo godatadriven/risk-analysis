@@ -45,15 +45,35 @@ class RandomPlayer (Player):
         if obl or (any(co) and random.random() > 0.5):
             return random.choice([i for i, x in enumerate(co) if x])
         return None
-    
+
+
 class RuleBasedPlayer (RandomPlayer):
-    
+
+    @staticmethod
+    def attack_score(fr_tid, fr_arm, to_tid, to_pid, to_arm):
+        return float(fr_arm-1) / to_arm
+
     @staticmethod
     def vantage(game, territory_id):
         own_armies = game.board.armies(territory_id)
         htl_armies = sum([arm for tid, pid, arm in game.board.hostile_neighbors(territory_id)])
         return float(own_armies) / (htl_armies+0.01)
-    
+
+    def attack(self, game):
+        if random.random() > 0.90 and game.board.n_armies(self.player_id) < 50:
+            return None
+
+        # mijnGebied, aantalLegers, jouGebied, vanSpeler, aantalLegers
+        possible_attacks = game.board.possible_attacks(self.player_id)
+        if len(possible_attacks) == 0:
+            return None
+
+        attack = max(possible_attacks, key=lambda x: self.attack_score(*x))
+        if self.attack_score(*attack) < 1:
+            return None
+
+        return attack[0], attack[2], attack[1]-1
+
     def vantage_ratio(self, game, from_territory_id, to_territory_id):
         return self.vantage(game, from_territory_id)/self.vantage(game, to_territory_id)
     
