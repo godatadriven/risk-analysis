@@ -1,6 +1,7 @@
 import definitions
+import os
 import random
-
+import matplotlib.pyplot as plt
 
 
 class Board (object):
@@ -251,6 +252,22 @@ class Board (object):
             self.add_armies(from_territory, -def_wins)
             self.add_armies(to_territory, -att_wins)
         return False
+    
+    def plot(self):
+        im = plt.imread(os.getcwd() + '/risk.png')
+        plt.figure(figsize=(10, 15))
+        implot = plt.imshow(im)
+        for territory, owner, armies in self.data:
+            self.plot_single(territory, owner, armies)
+        plt.show()
+        
+    def plot_single(self, territory, owner, armies):
+        coor = definitions.territory_locations[territory]
+        plt.scatter([coor[0]], [coor[1]], s = 300, c=definitions.player_colors[owner])
+        plt.text(coor[0], coor[1]+12, s=str(armies), 
+                 color='black' if definitions.player_colors[owner] == 'yellow' else 'white',
+                 ha='center', size='x-large')    
+    
 
 def fight(attackers, defenders):
     n_attack_dices = min(attackers, 3)
