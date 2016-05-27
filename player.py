@@ -22,7 +22,7 @@ class Player (object):
 class RandomPlayer (Player):
     
     def attack(self, game):
-        if random.random() > 0.75 and game.board.n_armies(self.player_id) < 50:
+        if random.random() > 0.90 and game.board.n_armies(self.player_id) < 50:
             return None
         possible_attacks = game.board.possible_attacks(self.player_id)
         if len(possible_attacks) == 0:
@@ -45,3 +45,36 @@ class RandomPlayer (Player):
         if obl or (any(co) and random.random() > 0.5):
             return random.choice([i for i, x in enumerate(co) if x])
         return None
+    
+class RuleBasedPlayer (RandomPlayer):
+    
+    @staticmethod
+    def vantage(game, territory_id):
+        own_armies = game.board.armies(territory_id)
+        htl_armies = sum([arm for tid, pid, arm in game.board.hostile_neighbors(territory_id)])
+        return float(own_armies) / (htl_armies+0.01)
+    
+    def vantage_ratio(self, game, from_territory_id, to_territory_id):
+        return self.vantage(game, from_territory_id)/self.vantage(game, to_territory_id)
+    
+    def place(self, game):
+        options = [(tid, self.vantage(game, tid)) 
+                for tid in game.board.territories_of(self.player_id)]
+        return min(options, key=lambda x: x[1])[0]
+    
+    def fortify(self, game):
+        possible_fortifications = game.board.possible_fortifications(self.player_id)
+        if len(possible_fortifications) == 0:
+            return None
+        fort = max(possible_fortifications, key=lambda x: self.vantage_ratio(game, x[0], x[2]))
+        return fort[0], fort[2], fort[1]-1
+    
+    def use_cards(self, game):
+        co, obl = game.card_options(self.player_id)
+        choices = [i for i, x in enumerate(co) if x]
+        if obl:
+            return max(choices)
+        elif 3 in choices:
+            return 3
+        else:
+            return None
