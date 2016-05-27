@@ -32,7 +32,7 @@ class Game (object):
     def assign_cards(n_players):
         """ Assign reinforcement card placeholders to players. """
         return [[0, 0, 0] for pid in range(n_players)]
-    
+
     @staticmethod
     def assign_missions(n_players):
         """ Assign missions to players. """
@@ -65,8 +65,7 @@ class Game (object):
                 self.board.add_armies(territory, 1)
                 changed = True
         return changed
-    
-    
+
     @property
     def current_player_id(self):
         """ Return the player id of the current turn. """
@@ -76,17 +75,29 @@ class Game (object):
     def current_player(self):
         return self.players[self.current_player_id] if self.current_player_id is not None else None
 
- 
-    
     @property
     def n_players(self):
         return len(self.players)
-   
+
+    @property
+    def player_ids(self):
+        return range(len(self.players))
+
+    @property
+    def starting_armies(self):
+        return definitions.starting_armies[self.n_players]
+
     def next_turn(self):
         self.turn += 1
         if not self.is_alive(self.current_player_id):
             self.next_turn()
-            
+
+    def winner(self):
+        for player_id in self.player_ids:
+            if self.has_won(player_id):
+                return player_id
+        return None
+
     def has_ended(self):
         return self.winner() is not None
 
@@ -115,8 +126,6 @@ class Game (object):
                 'Game: invalid fortification: player move armies of another player'
             self.board.fortify(*fortification)
 
-
-        
     def place(self, player):
         n_reinforcements = self.board.reinforcements(player.player_id)
         for i in range(n_reinforcements):
@@ -154,16 +163,16 @@ class Game (object):
 
     def use_cards(self, player_id, combination_id):
         cards = self.cards[player_id]
-        if combination_id == 0: # infantry, 4 armies
+        if combination_id == 0:  # infantry, 4 armies
             cards[0] -= 3
             retval = 4
-        elif combination_id == 1: # cavalry, 6 armies
+        elif combination_id == 1:  # cavalry, 6 armies
             cards[1] -= 3
             retval = 6
-        elif combination_id == 2: # artillery, 8 armies
+        elif combination_id == 2:  # artillery, 8 armies
             cards[2] -= 3
             retval = 8
-        elif combination_id == 3: # combination, 10 armies
+        elif combination_id == 3:  # combination, 10 armies
             for i in range(3):
                 cards[i] -= 1
             retval = 10
@@ -171,8 +180,9 @@ class Game (object):
             return 0
         assert min(cards) >= 0, 'Player is cheating: handing in cards he does not own!'
         return retval
-        
+
     def plot(self):
+        """ Plot the current game on a board """
         self.board.plot_board()
         self.plot_table()
         self.plot_turn()
@@ -212,19 +222,3 @@ class Game (object):
 
         # Top left
         plt.text(-50, 0, content, fontsize=12)
-
-
-    @property
-    def player_ids(self):
-        return range(len(self.players))
-    
-    @property
-    def starting_armies(self):
-        return definitions.starting_armies[self.n_players]
-    
-    def winner(self):
-        for player_id in self.player_ids:
-            if self.has_won(player_id):
-                return player_id
-        return None
-    
