@@ -4,6 +4,9 @@ import random
 import definitions
 import missions
 import board
+import matplotlib.pyplot as plt
+from matplotlib.font_manager import FontProperties
+
 
 class Game (object):
     
@@ -46,7 +49,7 @@ class Game (object):
         for pid, player in enumerate(retval):
             player.player_id = pid
         return retval
-    
+
     def initialize_armies(self):
         """ Have all players place all starting armies on the board. """
         while self.initialize_single_army():
@@ -118,11 +121,11 @@ class Game (object):
         n_reinforcements = self.board.reinforcements(player.player_id)
         for i in range(n_reinforcements):
             territory_id = player.place(self)
-            self.board.add_armies(territory_id, 1)   
+            self.board.add_armies(territory_id, 1)
         n_extra = self.use_cards(player.player_id, player.use_cards(self))
         for i in range(n_extra):
             territory_id = player.place(self)
-            self.board.add_armies(territory_id, 1)        
+            self.board.add_armies(territory_id, 1)
 
     def play_turn(self):
         player = self.current_player
@@ -139,7 +142,7 @@ class Game (object):
             if pid == player_id else cards
             for pid, cards in enumerate(self.cards)
         ]
-        
+
     def card_options(self, player_id):
         cards = self.cards[player_id]
         infantry    = cards[0] >= 3
@@ -148,7 +151,7 @@ class Game (object):
         combination = min(cards) >= 1
         obligatory  = sum(cards) >= 5
         return ((infantry, cavalry, artillery, combination), obligatory)
-    
+
     def use_cards(self, player_id, combination_id):
         cards = self.cards[player_id]
         if combination_id == 0: # infantry, 4 armies
@@ -169,6 +172,48 @@ class Game (object):
         assert min(cards) >= 0, 'Player is cheating: handing in cards he does not own!'
         return retval
         
+    def plot(self):
+        self.board.plot_board()
+        self.plot_table()
+        self.plot_turn()
+        plt.axis('off')
+        plt.show()
+
+    def plot_table(self):
+        text = ['Player: ter arm mis']
+
+        for player in self.players:
+            pid = player.player_id
+            text.append('{c:6}:{r:4} {a:3} {m:2.2f}'.format(
+                c=definitions.player_colors[pid],
+                r=self.board.n_territories(pid),
+                a=self.board.n_armies(pid),
+                m=self.missions[pid].score(self.board))
+                        .expandtabs())
+
+        font0 = FontProperties()
+        font0.set_family('monospace')
+
+        # Left bottom
+        plt.text(-50, 1160, '\n'.join(text), fontproperties=font0)
+
+    def plot_turn(self):
+        if self.current_player >= 0:
+            if self.has_ended():
+                color = definitions.player_colors[self.winner()]
+                mission = self.missions[self.winner()].description
+                content = 'Winner {nr}: {p} - {m}'.format(nr=self.turn, p=color, m=mission)
+            else:
+                color = definitions.player_colors[self.current_player_id]
+                mission = self.missions[self.current_player_id].description
+                content = 'Turn {nr}: {p} - {m}'.format(nr=self.turn, p=color, m=mission)
+        else:
+            content = 'Pre-game'
+
+        # Top left
+        plt.text(-50, 0, content, fontsize=12)
+
+
     @property
     def player_ids(self):
         return range(len(self.players))
