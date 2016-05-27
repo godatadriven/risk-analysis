@@ -80,7 +80,7 @@ class TerritoryMission (Mission):
     
     def _criterium(self, board):
         """ Return the number of territories owned by the player, with at least the minimum number of armies. """
-        return len([tid for (tid, pid, arm) in board.data if (pid == self.player_id and arm >= 2)]) >= 18
+        return len([tid for (tid, pid, arm) in board.data if (pid == self.player_id and arm >= 2)])
     
     def _evaluate(self, board):
         """ The mission is succesful if the number of territories is equal or larger than the minimum. """
