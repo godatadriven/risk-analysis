@@ -60,10 +60,6 @@ class RuleBasedPlayer (RandomPlayer):
         return float(own_armies) / (htl_armies+0.01)
 
     def attack(self, game):
-        if random.random() > 0.90 and game.board.n_armies(self.player_id) < 50:
-            return None
-
-        # mijnGebied, aantalLegers, jouGebied, vanSpeler, aantalLegers
         possible_attacks = game.board.possible_attacks(self.player_id)
         if len(possible_attacks) == 0:
             return None
