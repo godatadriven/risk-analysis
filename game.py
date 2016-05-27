@@ -202,7 +202,7 @@ class Game (object):
             if self.has_ended():
                 color = definitions.player_colors[self.winner()]
                 mission = self.missions[self.winner()].description
-                content = 'Winner {nr}: {p} - {m}'.format(nr=self.turn, p=color, m=mission)
+                content = 'Winner: {p} - {m}\nTotal turns {nr}'.format(nr=self.turn, p=color, m=mission)
             else:
                 color = definitions.player_colors[self.current_player_id]
                 mission = self.missions[self.current_player_id].description
