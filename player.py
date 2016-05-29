@@ -21,6 +21,10 @@ class Player (object):
 
 class RandomPlayer (Player):
     
+    @property
+    def description(self):
+        return 'RandomPlayer'
+    
     def attack(self, game):
         if random.random() > 0.90 and game.board.n_armies(self.player_id) < 50:
             return None
@@ -46,9 +50,14 @@ class RandomPlayer (Player):
             return random.choice([i for i, x in enumerate(co) if x])
         return None
 
-
+        
+    
 class RuleBasedPlayer (RandomPlayer):
 
+    @property
+    def description(self):
+        return 'RuleBasedPlayer'    
+    
     @staticmethod
     def attack_score(fr_tid, fr_arm, to_tid, to_pid, to_arm):
         return float(fr_arm-1) / to_arm
@@ -77,17 +86,17 @@ class RuleBasedPlayer (RandomPlayer):
     def vantage_ratio(self, game, from_territory_id, to_territory_id):
         return self.vantage(game, from_territory_id)/self.vantage(game, to_territory_id)
     
-    def place(self, game):
-        options = [(tid, self.vantage(game, tid)) 
-                for tid in game.board.territories_of(self.player_id)]
-        return min(options, key=lambda x: x[1])[0]
+    #def place(self, game):
+    #    options = [(tid, self.vantage(game, tid)) 
+    #            for tid in game.board.territories_of(self.player_id)]
+    #    return min(options, key=lambda x: x[1])[0]
     
-    def fortify(self, game):
-        possible_fortifications = game.board.possible_fortifications(self.player_id)
-        if len(possible_fortifications) == 0:
-            return None
-        fort = max(possible_fortifications, key=lambda x: self.vantage_ratio(game, x[0], x[2]))
-        return fort[0], fort[2], fort[1]-1
+    #def fortify(self, game):
+    #    possible_fortifications = game.board.possible_fortifications(self.player_id)
+    #    if len(possible_fortifications) == 0:
+    #        return None
+    #    fort = max(possible_fortifications, key=lambda x: self.vantage_ratio(game, x[0], x[2]))
+    #    return fort[0], fort[2], fort[1]-1
     
     def use_cards(self, game):
         co, obl = game.card_options(self.player_id)
