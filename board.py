@@ -181,6 +181,9 @@ class Board (object):
                 list: list of tuples of the form (territory_id, player_id, armies). """
         return ((tid, pid, arm) for (tid, pid, arm) in self.data if tid in definitions.continent_territories[continent_id])  
     
+    def owns_continent(self, player_id, continent_id):
+        return all((pid == player_id for (tid, pid, arm) in self.continent(continent_id)))
+    
     def continent_owner(self, continent_id):
         """ Find the owner of all territories in a continent. If the continent
             is owned by various players, return None.
@@ -255,18 +258,18 @@ class Board (object):
     
     def plot_board(self):
         im = plt.imread(os.getcwd() + '/risk.png')
-
         plt.figure(figsize=(10, 15))
         implot = plt.imshow(im)
         for territory, owner, armies in self.data:
             self.plot_single(territory, owner, armies)
-
+        
     def plot_single(self, territory, owner, armies):
         coor = definitions.territory_locations[territory]
         plt.scatter([coor[0]], [coor[1]], s = 300, c=definitions.player_colors[owner])
         plt.text(coor[0], coor[1]+12, s=str(armies), 
                  color='black' if definitions.player_colors[owner] == 'yellow' else 'white',
-                 ha='center', size='x-large')
+                 ha='center', size='x-large')    
+    
 
 def fight(attackers, defenders):
     n_attack_dices = min(attackers, 3)
