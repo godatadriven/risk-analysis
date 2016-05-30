@@ -155,6 +155,10 @@ continent_territories = {
      4: [9, 16, 23, 38],
      5: [3, 4, 28, 37]}
 
+territory_continents = {
+    tid: cid for cid, tids in continent_territories.items() for tid in tids   
+}
+
 player_colors = {
      0: 'red',
      1: 'blue',
