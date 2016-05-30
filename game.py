@@ -1,4 +1,3 @@
-import copy
 import random
 
 import definitions
@@ -49,7 +48,7 @@ class Game (object):
     
     @staticmethod
     def prepare_players(players):
-        return [copy.deepcopy(p) for p in players]
+        return [p.copy() for p in players]
 
     def initialize_armies(self):
         """ Have all players place all starting armies on the board. """

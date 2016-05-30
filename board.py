@@ -11,7 +11,7 @@ class Board (object):
     
     @classmethod
     def create(cls, n_players):
-        """ Create a Board, randomly allocate the territoriess and place one army on each territory.
+        """ Create a Board, randomly allocate the territories and place one army on each territory.
         
             Args:
                 n_players (int): Number of players.
@@ -21,6 +21,10 @@ class Board (object):
         allocation = (range(n_players)*42)[0:42]
         random.shuffle(allocation)
         return cls([(tid, pid, 1) for tid, pid in enumerate(allocation)])
+
+    # ======================= #
+    # == Territory Methods == #
+    # ======================= #     
     
     def owner(self, territory_id):
         """ Get the owner of the territory. 
@@ -29,7 +33,7 @@ class Board (object):
                 territory_id (int): ID of the territory.
                 
             Returns:
-                int, Player_id that owns the territory. """
+                int: Player_id that owns the territory. """
         return self.data[territory_id][1]
     
     def armies(self, territory_id):
@@ -39,7 +43,7 @@ class Board (object):
                 territory_id (int): ID of the territory.
                 
             Returns:
-                int, Number of armies in the territory. """
+                int: Number of armies in the territory. """
         return self.data[territory_id][2]
     
     def set_owner(self, territory_id, player_id):
@@ -87,41 +91,15 @@ class Board (object):
                 int: number of territories owned by the player. """
         return len([pid for tid, pid, arm in self.data if pid == player_id])
     
-    def n_continents(self, player_id):
-        """ Calculate the total number of continents owned by a player.
-        
+    def territories_of(self, player_id):
+        """ Return a set of all territories owned by the player.
+            
             Args:
                 player_id (int): ID of the player.
                 
             Returns:
-                int: Number of continents owned by the player. """
-        return len([continent_id for continent_id in range(6) if self.continent_owner(continent_id) == player_id])
-    
-    def possible_attacks(self, player_id):
-        """ Assemble a list of all possible attacks for the players.
-        
-            Args:
-                player_id (int): ID of the attacking player.
-                
-            Returns:
-                list: each entry is an attack in the form of a tuple:
-                    (from_territory_id, from_armies, to_territory_id, to_player_id, to_armies). """
-        return [(fr_tid, fr_arm, to_tid, to_pid, to_arm) for 
-                    (fr_tid, fr_pid, fr_arm) in self.mobile(player_id) for
-                    (to_tid, to_pid, to_arm) in self.hostile_neighbors(fr_tid)]  
-
-    def possible_fortifications(self, player_id):
-        """ Assemble a list of all possible fortifications for the players.
-        
-            Args:
-                player_id (int): ID of the attacking player.
-                
-            Returns:
-                list: each entry is an attack in the form of a tuple:
-                    (from_territory_id, from_armies, to_territory_id, to_player_id, to_armies). """
-        return [(fr_tid, fr_arm, to_tid, to_pid, to_arm) for 
-                    (fr_tid, fr_pid, fr_arm) in self.mobile(player_id) for
-                    (to_tid, to_pid, to_arm) in self.friendly_neighbors(fr_tid)]  
+                set: set of territory IDs """        
+        return [tid for (tid, pid, arm) in self.data if pid == player_id] 
     
     def mobile(self, player_id):
         """ Create an iterator over all territories of a player which can attack or move,
@@ -133,6 +111,10 @@ class Board (object):
             Returns:
                 list: list of tuples of the form (territory_id, player_id, armies). """           
         return ((tid, pid, arm) for (tid, pid, arm) in self.data if (pid == player_id and arm > 1))
+
+    # ====================== #
+    # == Neighbor Methods == #
+    # ====================== #   
     
     def neighbors(self, territory_id):
         """ Create an iterator over all territories neighboring a given territory.
@@ -171,6 +153,10 @@ class Board (object):
         neighbor_ids = definitions.territory_neighbors[territory_id]
         return ((tid, pid, arm) for (tid, pid, arm) in self.data if (pid == player_id and tid in neighbor_ids))
 
+    # ======================= #
+    # == Continent Methods == #
+    # ======================= #
+    
     def continent(self, continent_id):
         """ Create an iterator over all territories that belong to a given continent.
             
@@ -178,10 +164,28 @@ class Board (object):
                 continent_id (int): ID of the continent.
                 
             Returns:
-                list: list of tuples of the form (territory_id, player_id, armies). """
+                iterator: over tuples of the form (territory_id, player_id, armies). """
         return ((tid, pid, arm) for (tid, pid, arm) in self.data if tid in definitions.continent_territories[continent_id])  
+
+    def n_continents(self, player_id):
+        """ Calculate the total number of continents owned by a player.
+        
+            Args:
+                player_id (int): ID of the player.
+                
+            Returns:
+                int: Number of continents owned by the player. """
+        return len([continent_id for continent_id in range(6) if self.owns_continent(player_id, continent_id)])    
     
     def owns_continent(self, player_id, continent_id):
+        """ Check if the player owns the continent.
+        
+            Args:
+                player_id (int): ID of the player.
+                continent_id (int): ID of the continent.
+            
+            Returns:
+                bool: True if the player owns all of the continent's territories. """
         return all((pid == player_id for (tid, pid, arm) in self.continent(continent_id)))
     
     def continent_owner(self, continent_id):
@@ -199,9 +203,21 @@ class Board (object):
         return None
     
     def continent_fraction(self, continent_id, player_id):
+        """ Compute which fraction of the continent the player owns.
+        
+            Args:
+                continent_id (int): ID of the continent.
+                player_id (int): ID of the player.
+            
+            Returns:
+                float: The fraction of the continent owned by the player. """
         c_data = list(self.continent(continent_id))
         p_data = [(tid, pid, arm) for (tid, pid, arm) in c_data if pid == player_id]
         return float(len(p_data)) / len(c_data)
+
+    # ==================== #
+    # == Action Methods == #
+    # ==================== #    
     
     def reinforcements(self, player_id):
         """ Calculate the number of reinforcements a player is entitled to.
@@ -218,34 +234,71 @@ class Board (object):
                 bonus_reinforcements += bonus
         return base_reinforcements + bonus_reinforcements
 
-    def territories_of(self, player_id):
-        """ Return a set of all territories owned by the player.
-            
+    def possible_attacks(self, player_id):
+        """ Assemble a list of all possible attacks for the players.
+        
             Args:
-                player_id (int): ID of the player.
+                player_id (int): ID of the attacking player.
                 
             Returns:
-                set: set of territory IDs """        
-        return [tid for (tid, pid, arm) in self.data if pid == player_id]
+                list: each entry is an attack in the form of a tuple:
+                    (from_territory_id, from_armies, to_territory_id, to_player_id, to_armies). """
+        return [(fr_tid, fr_arm, to_tid, to_pid, to_arm) for 
+                    (fr_tid, fr_pid, fr_arm) in self.mobile(player_id) for
+                    (to_tid, to_pid, to_arm) in self.hostile_neighbors(fr_tid)]  
+
+    def possible_fortifications(self, player_id):
+        """ Assemble a list of all possible fortifications for the players.
+        
+            Args:
+                player_id (int): ID of the attacking player.
+                
+            Returns:
+                list: each entry is an attack in the form of a tuple:
+                    (from_territory_id, from_armies, to_territory_id, to_player_id, to_armies). """
+        return [(fr_tid, fr_arm, to_tid, to_pid, to_arm) for 
+                    (fr_tid, fr_pid, fr_arm) in self.mobile(player_id) for
+                    (to_tid, to_pid, to_arm) in self.friendly_neighbors(fr_tid)]     
 
     def fortify(self, from_territory, to_territory, n_armies):
+        """ Perform a fortification.
+        
+            Args:
+                from_territory (int): Territory_id of the territory where armies leave.
+                to_territory (int): Territory_id of the territory where armies arrive.
+                n_armies (int): Number of armies to move. """
         assert self.armies(from_territory) > n_armies, \
             'Board: invalid fortification: too many armies.'
         assert n_armies >= 0, \
-            'Board: invalid fortification: zero or negative number of armies moved.'
+            'Board: invalid fortification: negative number of armies moved.'
         assert self.owner(from_territory) == self.owner(to_territory), \
-            'Board: invalid fortification: territories do not share the owner.'
+            'Board: invalid fortification: territories do not share owner.'
         assert to_territory in definitions.territory_neighbors[from_territory], \
             'Board: invalid fortification: territories do not share border.'
         self.add_armies(from_territory, -n_armies)
         self.add_armies(to_territory, +n_armies)
         
     def attack(self, from_territory, to_territory, n_armies):
+        """ Perform an attack.
+        
+            Args:
+                from_territory (int): Territory_id of the offensive territory.
+                to_territory (int): Territory_id of the defensive territory.
+                n_armies (int): Number of attacking armies.
+                
+            Returns:
+                bool: True if the defensive territory was conquered, False otherwise. """
         assert self.armies(from_territory) > n_armies, \
-            'Player is using more armies to attack than allowed!'
+            'Board: invalid attack: using more armies than allowed!'
+        assert n_armies > 0, \
+            'Board: invalid attack: no armies used.'
+        assert self.owner(from_territory) != self.owner(to_territory), \
+            'Board: invalid attack: player attacking his own land.'
+        assert to_territory in definitions.territory_neighbors[from_territory], \
+            'Board: invalid attack: territories do not share border.'
         attackers = n_armies
         defenders = self.armies(to_territory)
-        att_wins, def_wins = fight(attackers, defenders)
+        def_wins, att_wins = self.fight(attackers, defenders)
         if self.armies(to_territory) == att_wins:
             self.add_armies(from_territory, -n_armies)
             self.set_armies(to_territory, n_armies - def_wins)
@@ -254,30 +307,53 @@ class Board (object):
         else:
             self.add_armies(from_territory, -def_wins)
             self.add_armies(to_territory, -att_wins)
-        return False
+            return False
+
+    # ====================== #
+    # == Plotting Methods == #
+    # ====================== #    
     
     def plot_board(self):
+        """ Plot the board. """
         im = plt.imread(os.getcwd() + '/risk.png')
         plt.figure(figsize=(10, 15))
         implot = plt.imshow(im)
         for territory, owner, armies in self.data:
             self.plot_single(territory, owner, armies)
         
-    def plot_single(self, territory, owner, armies):
-        coor = definitions.territory_locations[territory]
-        plt.scatter([coor[0]], [coor[1]], s = 300, c=definitions.player_colors[owner])
+    def plot_single(self, territory_id, player_id, armies):
+        """ Plot a single army dot. """
+        coor = definitions.territory_locations[territory_id]
+        plt.scatter([coor[0]], [coor[1]], s = 300, c=definitions.player_colors[player_id])
         plt.text(coor[0], coor[1]+12, s=str(armies), 
-                 color='black' if definitions.player_colors[owner] == 'yellow' else 'white',
+                 color='black' if definitions.player_colors[player_id] in ['yellow', 'pink'] else 'white',
                  ha='center', size='x-large')    
     
-
-def fight(attackers, defenders):
-    n_attack_dices = min(attackers, 3)
-    n_defend_dices = min(defenders, 2)
-    attack_dices = sorted([throw_dice() for i in range(n_attack_dices)], reverse=True)
-    defend_dices = sorted([throw_dice() for i in range(n_defend_dices)], reverse=True)
-    wins = [att_d > def_d for att_d, def_d in zip(attack_dices, defend_dices)]
-    return len([w for w in wins if w is True]), len([w for w in wins if w is False])   
+    # ==================== #
+    # == Combat Methods == #
+    # ==================== #    
     
-def throw_dice():
-    return random.randint(1, 6)  
+    @classmethod
+    def fight(cls, attackers, defenders):
+        """ Stage a fight.
+        
+            Args:
+                attackers (int): Number of attackers.
+                defenders (int): Number of defenders.
+                
+            Returns:
+                tuple (int, int): Number of lost attackers, number of lost defenders. """
+        n_attack_dices = min(attackers, 3)
+        n_defend_dices = min(defenders, 2)
+        attack_dices = sorted([cls.throw_dice() for i in range(n_attack_dices)], reverse=True)
+        defend_dices = sorted([cls.throw_dice() for i in range(n_defend_dices)], reverse=True)
+        wins = [att_d > def_d for att_d, def_d in zip(attack_dices, defend_dices)]
+        return len([w for w in wins if w is False]), len([w for w in wins if w is True])   
+    
+    @staticmethod
+    def throw_dice():
+        """ Throw a dice.
+        
+            Returns:
+                int: random int in [1, 6]. """
+        return random.randint(1, 6)  

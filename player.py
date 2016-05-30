@@ -1,7 +1,15 @@
-import random
-import definitions, missions
+import copy, random
+import definitions
 
 class Player (object):
+    """ The Player class is the basic player object. By itself, a Player
+        cannot play the game. For this, it needs to be combined with Mixins
+        which implement the `reinforce()`, `turn_in_cards()`, `attack()` and
+        `fortify()` methods.
+        
+        The Player has internal references to the board on which it is playing,
+        to the cards it has, and to its mission. Additionally, it has methods
+        which calculate certain quantities based on these game objects. """
     
     def __init__(self, name=None):
         self.name      = name
@@ -9,6 +17,9 @@ class Player (object):
     def __repr__(self):
         return '{dscr}({name})'.format(dscr=self.description, name=self.name)
 
+    def copy(self):
+        return copy.deepcopy(self)
+    
     def join(self, player_id, board, cards, mission):
         self.player_id = player_id
         self.board     = board
@@ -31,26 +42,34 @@ class Player (object):
         
     def possible_fortifications(self):
         return self.board.possible_fortifications(self.player_id)
-        
-class RandomAttackMixin (object):
     
-    def attack(self):
-        if random.random() > 0.90 and self.board.n_armies(self.player_id) < 50:
-            return None
-        possible_attacks = self.possible_attacks()
-        if len(possible_attacks) == 0:
-            return None
-        fr_tid, fr_arm, to_tid, to_pid, to_arm = random.choice(possible_attacks)
-        return fr_tid, to_tid, fr_arm-1
+    # ==================== #
+    # == Metric methods == #
+    # ==================== #
+
+    @staticmethod
+    def army_ratio(fr_tid, fr_arm, to_tid, to_pid, to_arm):
+        return float(fr_arm-1) / to_arm
     
-class RandomFortifyMixin (object):
+    def army_vantage(self, territory_id):
+        own_armies = self.board.armies(territory_id)
+        htl_armies = sum([arm for tid, pid, arm in self.board.hostile_neighbors(territory_id)])
+        return float(own_armies) / (htl_armies+0.01)
     
-    def fortify(self):
-        possible_fortifications = self.possible_fortifications()
-        if len(possible_fortifications) == 0:
-            return None
-        fr_tid, fr_arm, to_tid, to_pid, to_arm = random.choice(possible_fortifications)
-        return fr_tid, to_tid, random.randint(1, fr_arm-1)
+    def territory_vantage(self, territory_id):
+        hn_count = len(list(self.board.hostile_neighbors(territory_id)))
+        fn_count = len(list(self.board.friendly_neighbors(territory_id)))
+        return float(fn_count) / (0.01 + hn_count)
+
+    def army_vantage_ratio(self, fr_tid, fr_arm, to_tid, to_pid, to_arm):
+        return self.army_vantage(fr_tid) / self.army_vantage(to_tid)    
+    
+    # ======================= #
+    # == Exception methods == #
+    # ======================= #    
+    
+    pass
+
     
 class RandomReinforceMixin (object):
     
@@ -62,124 +81,71 @@ class RandomReinforceMixin (object):
         if len(complete_sets) == 0 or (not self.cards.obligatory_turn_in and random.random() > 0.5):
             return None
         return random.choice(complete_sets)
-     
-class RandomPlayer (Player, RandomAttackMixin, RandomFortifyMixin, RandomReinforceMixin):
-    pass
-        
-class XRandomPlayer (Player):
     
-    def attack(self, game):
-        if random.random() > 0.90 and game.board.n_armies(self.player_id) < 50:
+class RandomAttackMixin (object):
+    
+    def attack(self):
+        if random.random() > 0.90 and self.board.n_armies(self.player_id) < 50:
             return None
-        possible_attacks = game.board.possible_attacks(self.player_id)
+        possible_attacks = self.possible_attacks()
         if len(possible_attacks) == 0:
             return None
-        attack = random.choice(possible_attacks)
-        return attack[0], attack[2], attack[1]-1
+        fr_tid, fr_arm, to_tid, to_pid, to_arm = random.choice(possible_attacks)
+        return fr_tid, to_tid, fr_arm-1
 
-    def fortify(self, game):
-        possible_fortifications = game.board.possible_fortifications(self.player_id)
+class RandomFortifyMixin (object):
+    
+    def fortify(self):
+        possible_fortifications = self.possible_fortifications()
         if len(possible_fortifications) == 0:
             return None
-        fortification = random.choice(possible_fortifications)
-        return fortification[0], fortification[2], random.randint(1, fortification[1]-1)
+        fr_tid, fr_arm, to_tid, to_pid, to_arm = random.choice(possible_fortifications)
+        return fr_tid, to_tid, random.randint(1, fr_arm-1)
 
-    def place(self, game):
-        return random.choice(list(game.board.territories_of(self.player_id)))
+class RuleBasedCardsBase (object):
     
-    def use_cards(self, game):
-        co, obl = game.card_options(self.player_id)
-        if obl or (any(co) and random.random() > 0.5):
-            return random.choice([i for i, x in enumerate(co) if x])
-        return None
-
-        
+    def turn_in_cards(self):
+        complete_sets = {sn: arm for sn, arm in self.cards.complete_sets}
+        if self.cards.obligatory_turn_in:
+            return max(complete_sets.items(), key=lambda x: x[1])[0]
+        if 'mix' in complete_sets:
+            return 'mix'
+        return None     
     
-class RuleBasedPlayer (RandomPlayer):
-
-    @staticmethod
-    def attack_score(fr_tid, fr_arm, to_tid, to_pid, to_arm):
-        return float(fr_arm-1) / to_arm
-
-    @staticmethod
-    def vantage(game, territory_id):
-        own_armies = game.board.armies(territory_id)
-        htl_armies = sum([arm for tid, pid, arm in game.board.hostile_neighbors(territory_id)])
-        return float(own_armies) / (htl_armies+0.01)
-
-    def attack(self, game):
-        possible_attacks = game.board.possible_attacks(self.player_id)
-        if len(possible_attacks) == 0:
-            return None
-
-        attack = max(possible_attacks, key=lambda x: self.attack_score(*x))
-        if self.attack_score(*attack) < 1:
-            return None
-
-        return attack[0], attack[2], attack[1]-1
-
-    def vantage_ratio(self, game, from_territory_id, to_territory_id):
-        return self.vantage(game, from_territory_id)/self.vantage(game, to_territory_id)
+class BasicReinforceMixin (RuleBasedCardsBase):
     
-    #def place(self, game):
-    #    options = [(tid, self.vantage(game, tid)) 
-    #            for tid in game.board.territories_of(self.player_id)]
-    #    return min(options, key=lambda x: x[1])[0]
-    
-    #def fortify(self, game):
-    #    possible_fortifications = game.board.possible_fortifications(self.player_id)
-    #    if len(possible_fortifications) == 0:
-    #        return None
-    #    fort = max(possible_fortifications, key=lambda x: self.vantage_ratio(game, x[0], x[2]))
-    #    return fort[0], fort[2], fort[1]-1
-    
-    def use_cards(self, game):
-        co, obl = game.card_options(self.player_id)
-        choices = [i for i, x in enumerate(co) if x]
-        if obl:
-            return max(choices)
-        elif 3 in choices:
-            return 3
-        else:
-            return None
-        
-class FortifyingPlayer (RuleBasedPlayer):
-    
-    @staticmethod
-    def territory_vantage(game, territory_id):
-        hn_count = len(list(game.board.hostile_neighbors(territory_id)))
-        fn_count = len(list(game.board.friendly_neighbors(territory_id)))
-        return float(fn_count) / (0.01 + hn_count)
-    
-    @classmethod
-    def territory_vantage_ratio(cls, game, from_territory_id, to_territory_id):
-        return cls.territory_vantage(game, from_territory_id) / \
-               cls.territory_vantage(game, to_territory_id)
-        
-    @staticmethod
-    def army_vantage(game, territory_id):
-        own_armies = game.board.armies(territory_id)
-        htl_armies = sum([arm for tid, pid, arm in game.board.hostile_neighbors(territory_id)])
-        return float(own_armies) / (htl_armies+0.01)        
- 
-    @classmethod
-    def army_vantage_ratio(cls, game, from_territory_id, to_territory_id):
-        return cls.army_vantage(game, from_territory_id) / \
-               cls.army_vantage(game, to_territory_id)
-    
-    def fortify(self, game):
-            possible_fortifications = game.board.possible_fortifications(self.player_id)
-            if len(possible_fortifications) == 0:
-                return None
-            fort = max(possible_fortifications, key=lambda x: self.army_vantage_ratio(game, x[0], x[2]))
-            return fort[0], fort[2], fort[1]-1
-    
-class PlacingPlayer (FortifyingPlayer):
-    
-    def place(self, game):
-        options = game.board.territories_of(self.player_id)
-        if isinstance(self.mission(game), missions.TerritoryMission) and len(options) >= 18:
+    def reinforce(self):
+        options = self.my_territories()
+        if isinstance(self.mission, missions.TerritoryMission) and len(options) >= 18:
             options = [o for o in options if game.board.armies(o) < 2]
             if len(options) == 0: # in this case the player has in principle won, but the turn needs to be completed to win
                 options = game.board.territories_of(self.player_id)
-        return min(options, key=lambda x: self.territory_vantage(game, x))
+        return min(options, key=lambda x: self.territory_vantage(x))
+
+class BasicAttackMixin (object):
+    
+    def attack(self):
+        possible_attacks = self.possible_attacks()
+        if len(possible_attacks) == 0: return None
+        attack = max(possible_attacks,
+                     key=lambda x: self.army_ratio(*x))
+        if self.army_ratio(*attack) < 1: return None
+        fr_tid, fr_arm, to_tid, to_pid, to_arm = attack
+        return fr_tid, to_tid, fr_arm-1 
+
+class BasicFortifyMixin (object):
+    
+    def fortify(self):
+        possible_fortifications = self.possible_fortifications()
+        if len(possible_fortifications) == 0:
+            return None
+        fortification = max(possible_fortifications,
+                            key=lambda x: self.army_vantage_ratio(*x))
+        fr_tid, fr_arm, to_tid, to_pid, to_arm = fortification
+        return fr_tid, to_tid, fr_arm-1     
+    
+class RandomPlayer (Player, RandomReinforceMixin, RandomAttackMixin, RandomFortifyMixin):
+    pass
+
+class BasicPlayer (Player, BasicReinforceMixin, BasicAttackMixin, BasicFortifyMixin):
+    pass
