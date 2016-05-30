@@ -226,7 +226,7 @@ class Board (object):
                 
             Returns:
                 set: set of territory IDs """        
-        return set((tid for (tid, pid, arm) in self.data if pid == player_id))
+        return [tid for (tid, pid, arm) in self.data if pid == player_id]
 
     def fortify(self, from_territory, to_territory, n_armies):
         assert self.armies(from_territory) > n_armies, \
