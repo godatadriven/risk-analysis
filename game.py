@@ -102,7 +102,10 @@ class Game (object):
         return self.winner() is not None
 
     def has_won(self, player_id):
-        return self.is_alive(player_id) and self.missions[player_id].evaluate(self.board)
+        return self.is_alive(player_id) and (
+            self.missions[player_id].evaluate(self.board) or
+            self.board.n_territories(player_id) == 42
+        )
     
     def is_alive(self, player_id):
         return self.board.n_territories(player_id) > 0
