@@ -2,6 +2,7 @@ import copy
 import random
 
 import definitions
+import cards
 import missions
 import board
 import matplotlib.pyplot as plt
@@ -16,6 +17,12 @@ class Game (object):
         self.missions = missions
         self.players  = players
         self.turn     = turn
+        self.assign_players()
+        
+    def assign_players(self):
+        for pid, player in enumerate(self.players):
+            player.join(pid, self.board, self.cards[pid], self.missions[pid])
+            self.missions[pid].assign_to(pid)
        
     @classmethod
     def create(cls, players):
@@ -30,25 +37,19 @@ class Game (object):
     
     @staticmethod
     def assign_cards(n_players):
-        """ Assign reinforcement card placeholders to players. """
-        return [[0, 0, 0] for pid in range(n_players)]
+        """ Assign reinforcement card hands to players. """
+        return [cards.Cards() for pid in range(n_players)]
 
     @staticmethod
     def assign_missions(n_players):
         """ Assign missions to players. """
         available_missions = missions.missions(n_players)
         random.shuffle(available_missions)
-        selected_missions = available_missions[:n_players]
-        for pid, m in enumerate(selected_missions):
-            m.assign_to(pid)
-        return selected_missions
+        return available_missions[:n_players]
     
     @staticmethod
     def prepare_players(players):
-        retval = [copy.deepcopy(p) for p in players]
-        for pid, player in enumerate(retval):
-            player.player_id = pid
-        return retval
+        return [copy.deepcopy(p) for p in players]
 
     def initialize_armies(self):
         """ Have all players place all starting armies on the board. """
@@ -56,15 +57,7 @@ class Game (object):
             continue
         self.next_turn()
             
-    def initialize_single_army(self):
-        """ Have each player place one army on the board, if they have one left. """
-        changed = False
-        for player in self.players:
-            if self.board.n_armies(player.player_id) < self.starting_armies:
-                territory = player.place(self)
-                self.board.add_armies(territory, 1)
-                changed = True
-        return changed
+
 
     @property
     def current_player_id(self):
@@ -113,76 +106,51 @@ class Game (object):
     def attack(self, player):
         did_win = False
         while True:
-            attack = player.attack(self)
+            attack = player.attack()
             if attack is None:
                 break
             # check valid owner
             if self.board.attack(*attack):
                 did_win = True
         if did_win:
-            self.give_card(player.player_id)
+            self.cards[player.player_id].receive()
         
     def fortify(self, player):
-        fortification = player.fortify(self)
+        fortification = player.fortify()
         if fortification is not None:
             assert self.current_player_id == self.board.owner(fortification[0]), \
                 'Game: invalid fortification: player move armies of another player'
             self.board.fortify(*fortification)
 
-    def place(self, player):
+    def initialize_single_army(self):
+        """ Have each player place one army on the board, if they have one left. """
+        changed = False
+        for player in self.players:
+            if self.board.n_armies(player.player_id) < self.starting_armies:
+                territory_id = player.reinforce()
+                self.board.add_armies(territory_id, 1)
+                changed = True
+        return changed            
+            
+    def reinforce(self, player):
         n_reinforcements = self.board.reinforcements(player.player_id)
         for i in range(n_reinforcements):
-            territory_id = player.place(self)
+            territory_id = player.reinforce()
             self.board.add_armies(territory_id, 1)
-        n_extra = self.use_cards(player.player_id, player.use_cards(self))
+        card_set = player.turn_in_cards()
+        if card_set is None: return
+        n_extra = self.cards[player.player_id].turn_in(card_set)
         for i in range(n_extra):
-            territory_id = player.place(self)
+            territory_id = player.reinforce()
             self.board.add_armies(territory_id, 1)
 
     def play_turn(self):
         player = self.current_player
         assert self.is_alive(player.player_id), 'Player cannot perform a turn, he is game-over!'
-        self.place(player)
+        self.reinforce(player)
         self.attack(player)
         self.fortify(player)
         self.next_turn()
-
-    def give_card(self, player_id):
-        card_type = random.randint(0,2)
-        self.cards = [
-            [(c+1 if ct == card_type else c) for ct, c in enumerate(cards)]
-            if pid == player_id else cards
-            for pid, cards in enumerate(self.cards)
-        ]
-
-    def card_options(self, player_id):
-        cards = self.cards[player_id]
-        infantry    = cards[0] >= 3
-        cavalry     = cards[1] >= 3
-        artillery   = cards[2] >= 3
-        combination = min(cards) >= 1
-        obligatory  = sum(cards) >= 5
-        return ((infantry, cavalry, artillery, combination), obligatory)
-
-    def use_cards(self, player_id, combination_id):
-        cards = self.cards[player_id]
-        if combination_id == 0:  # infantry, 4 armies
-            cards[0] -= 3
-            retval = 4
-        elif combination_id == 1:  # cavalry, 6 armies
-            cards[1] -= 3
-            retval = 6
-        elif combination_id == 2:  # artillery, 8 armies
-            cards[2] -= 3
-            retval = 8
-        elif combination_id == 3:  # combination, 10 armies
-            for i in range(3):
-                cards[i] -= 1
-            retval = 10
-        else:
-            return 0
-        assert min(cards) >= 0, 'Player is cheating: handing in cards he does not own!'
-        return retval
 
     def plot(self):
         """ Plot the current game on a board """
