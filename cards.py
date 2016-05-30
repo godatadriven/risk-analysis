@@ -33,7 +33,7 @@ class Cards (object):
         """ If a player owns 5 cards he is obliged to turn in a set of cards.
             
             Returns:
-                bool: which is true of the total number of cards is equal or greater than 5. """
+                bool: which is True of the total number of cards is equal or greater than 5. """
         return self.total_cards >= 5
     
     @property
