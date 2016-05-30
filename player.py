@@ -1,5 +1,5 @@
 import copy, random
-import definitions
+import definitions, missions
 
 class Player (object):
     """ The Player class is the basic player object. By itself, a Player
@@ -64,6 +64,34 @@ class Player (object):
     def army_vantage_ratio(self, fr_tid, fr_arm, to_tid, to_pid, to_arm):
         return self.army_vantage(fr_tid) / self.army_vantage(to_tid)    
     
+    def mission_value(self, territory_id):
+        if isinstance(self.mission, missions.PlayerMission):
+            if self.mission.target_id == self.player_id:
+                return self.board.n_territories(self.player_id) < 24
+            else:
+                return 1. if self.board.owner(territory_id) == self.mission.target_id else 0.
+        elif isinstance(self.mission, missions.ContinentMission):
+            continent_id = definitions.territory_continents[territory_id]
+            if continent_id in self.mission.continents:
+                return 1.
+            if isinstance(self.mission, missions.ExtraContinentMission):
+                if any(self.board.owns_continent(self.player_id, cid) for cid in self.mission.other_continents):
+                    return 0.
+                else:
+                    return self.board.continent_fraction(continent_id, self.player_id)
+            else:
+                return 0.
+        elif isinstance(self.mission, missions.BaseMission):
+            return self.board.n_territories(self.player_id) < 24
+        elif isinstance(self.mission, missions.TerritoryMission):
+            return self.board.n_territories(self.player_id) < 18
+        else:
+            raise Exception('Player: unknown mission: {m}'.format(m=self.mission))
+                            
+    def continent_value(self, territory_id):
+        continent_id = definitions.territory_continents[territory_id]
+        return self.board.continent_fraction(continent_id, self.player_id) * definitions.continent_bonuses[continent_id] 
+    
     # ======================= #
     # == Exception methods == #
     # ======================= #    
@@ -117,9 +145,9 @@ class BasicReinforceMixin (RuleBasedCardsBase):
     def reinforce(self):
         options = self.my_territories()
         if isinstance(self.mission, missions.TerritoryMission) and len(options) >= 18:
-            options = [o for o in options if game.board.armies(o) < 2]
+            options = [o for o in options if self.board.armies(o) < 2]
             if len(options) == 0: # in this case the player has in principle won, but the turn needs to be completed to win
-                options = game.board.territories_of(self.player_id)
+                options = self.my_territories()
         return min(options, key=lambda x: self.territory_vantage(x))
 
 class BasicAttackMixin (object):
@@ -143,9 +171,29 @@ class BasicFortifyMixin (object):
                             key=lambda x: self.army_vantage_ratio(*x))
         fr_tid, fr_arm, to_tid, to_pid, to_arm = fortification
         return fr_tid, to_tid, fr_arm-1     
+
+class SmartReinforceMixin (RuleBasedCardsBase):
     
+    def territory_weight(self, territory_id):
+        vantage         = -self.territory_vantage(territory_id)
+        mission_value   = self.mission_value(territory_id)
+        continent_value = self.continent_value(territory_id)
+        return (vantage + mission_value + continent_value/5.) - 2.
+    
+    def reinforce(self):
+        options = self.my_territories()
+        if isinstance(self.mission, missions.TerritoryMission) and len(options) >= 18:
+            options = [o for o in options if self.board.armies(o) < 2]
+            if len(options) == 0: # in this case the player has in principle won, but the turn needs to be completed to win
+                options = self.my_territories()
+        return max(options, key=lambda tid: self.territory_weight(tid))
+
 class RandomPlayer (Player, RandomReinforceMixin, RandomAttackMixin, RandomFortifyMixin):
     pass
 
 class BasicPlayer (Player, BasicReinforceMixin, BasicAttackMixin, BasicFortifyMixin):
     pass
+
+class SmartPlayer (Player, SmartReinforceMixin, BasicAttackMixin, BasicFortifyMixin):
+    pass
+    
