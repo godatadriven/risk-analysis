@@ -87,7 +87,7 @@ class Game (object):
     def winner(self):
         for player_id in self.player_ids:
             if self.has_won(player_id):
-                return player_id
+                return self.players[player_id]
         return None
 
     def has_ended(self):
