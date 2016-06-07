@@ -43,4 +43,5 @@ six==1.10.0
 terminado==0.6
 tornado==4.3
 traitlets==4.2.1
+trueskill==0.4.4
 widgetsnbextension==1.2.1
