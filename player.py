@@ -10,12 +10,7 @@ class Player (object):
         The Player has internal references to the board on which it is playing,
         to the cards it has, and to its mission. Additionally, it has methods
         which calculate certain quantities based on these game objects. """
-    
-    def __init__(self, name=None):
-        self.name      = name
         
-    def __repr__(self):
-        return '{dscr}({name})'.format(dscr=self.description, name=self.name)
 
     def copy(self):
         return copy.deepcopy(self)
@@ -25,6 +20,12 @@ class Player (object):
         self.board     = board
         self.cards     = cards
         self.mission   = mission
+        
+    def clear(self):
+        del self.player_id
+        del self.board
+        del self.cards
+        del self.mission
 
     @property
     def color(self):
@@ -197,3 +198,39 @@ class BasicPlayer (Player, BasicReinforceMixin, BasicAttackMixin, BasicFortifyMi
 class SmartPlayer (Player, SmartReinforceMixin, BasicAttackMixin, BasicFortifyMixin):
     pass
     
+import genome    
+    
+class GeneticPlayer (Player, genome.Genome, BasicAttackMixin, BasicFortifyMixin):
+    specifications = (
+        {'name': 'vantage_wgt', 'dtype': float, 'min_value': -1., 'max_value': 1., 
+         'volatility': 0.25, 'granularity': 0.15, 'digits': 2},
+        {'name': 'mission_wgt', 'dtype': float, 'min_value': -1., 'max_value': 1., 
+         'volatility': 0.25, 'granularity': 0.15, 'digits': 2},
+        {'name': 'continent_wgt', 'dtype': float, 'min_value': -1., 'max_value': 1., 
+         'volatility': 0.25, 'granularity': 0.15, 'digits': 2},
+        {'name': 'turn_in_cutoff', 'dtype': list, 'values': [4, 6, 8, 10], 'volatility': 0.1}
+    )
+
+    def turn_in_cards(self):
+        complete_sets = {sn: arm for sn, arm in self.cards.complete_sets}
+        if len(complete_sets) == 0: return None
+        best_set, armies = max(complete_sets.items(), key=lambda x: x[1])
+        if self.cards.obligatory_turn_in:
+            return best_set
+        if armies >= self['turn_in_cutoff']:
+            return best_set
+        return None      
+    
+    def territory_weight(self, territory_id):
+        vantage         = -self.territory_vantage(territory_id)
+        mission_value   = self.mission_value(territory_id)
+        continent_value = self.continent_value(territory_id)
+        return (vantage*self['vantage_wgt'] + mission_value*self['mission_wgt'] + continent_value*self['continent_wgt'])
+    
+    def reinforce(self):
+        options = self.my_territories()
+        if isinstance(self.mission, missions.TerritoryMission) and len(options) >= 18:
+            options = [o for o in options if self.board.armies(o) < 2]
+            if len(options) == 0: # in this case the player has in principle won, but the turn needs to be completed to win
+                options = self.my_territories()
+        return max(options, key=lambda tid: self.territory_weight(tid))

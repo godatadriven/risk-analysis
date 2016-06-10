@@ -48,7 +48,7 @@ class Game (object):
     
     @staticmethod
     def prepare_players(players):
-        return [p.copy() for p in players]
+        return players #[p.copy() for p in players]
 
     def initialize_armies(self):
         """ Have all players place all starting armies on the board. """

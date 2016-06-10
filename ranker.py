@@ -53,8 +53,8 @@ class RiskRanker (TrueskillRanker):
         for i in range(n):
             self.iteration()
             
-    def rank_players(self):
-        return [(self.players[pid], score) for pid, score in self.rank()]
+    def ranked_players(self):
+        return [self.players[pid] for pid, score in self.rank()]
                 
     def play_game(self, player_ids):
         players = [self.players[pid] for pid in player_ids]

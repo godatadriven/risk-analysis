@@ -30,19 +30,22 @@ class Genome (object):
         
         Genomes can be created using the create method, which will randomly initialize the genes. """
         
-    def __init__(self, genes):
+    def __init__(self, genes={}):
         self.genes = genes
         
     def __repr__(self):
         return '{cls}({val})'.format(
             cls=self.__class__.__name__, 
-            val=', '.join('{1}={2}'.format(name, g) for name, g in self.genes.items()))
+            val=', '.join('{0}={1}'.format(name, g) for name, g in self.genes.items()))
     
     def __eq__(self, other):
         return all((self.genes[name] == other.genes[name] for name in self.gene_names))  
 
     def __hash__(self):
-        return hash(tuple(self.genes[name] for name in self.gene_names))    
+        return hash(tuple(self.genes[name] for name in self.gene_names))  
+    
+    def __getitem__(self, key):
+        return self.genes[key]
 
     @classmethod
     def create(cls):
@@ -50,7 +53,7 @@ class Genome (object):
         
             Returns:
                 Genome: a randomly initialized genome. """
-        return cls({
+        return cls(genes={
             spec['name']: cls.initialize(**spec) for spec in cls.specifications
         })
 
