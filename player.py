@@ -2,6 +2,8 @@ import copy, random
 import definitions, missions
 
 class Player (object):
+    chances = [[1.41, 0.73, 0.52], [2.89, 1.57, 0.85]]
+    
     """ The Player class is the basic player object. By itself, a Player
         cannot play the game. For this, it needs to be combined with Mixins
         which implement the `reinforce()`, `turn_in_cards()`, `attack()` and
@@ -13,6 +15,7 @@ class Player (object):
         
 
     def copy(self):
+        raise Exception("Copying player!")
         return copy.deepcopy(self)
     
     def join(self, player_id, board, cards, mission):
@@ -92,6 +95,10 @@ class Player (object):
     def continent_value(self, territory_id):
         continent_id = definitions.territory_continents[territory_id]
         return self.board.continent_fraction(continent_id, self.player_id) * definitions.continent_bonuses[continent_id] 
+    
+    @classmethod
+    def probability(cls, fr_tid, fr_arm, to_tid, to_pid, to_arm):
+        return cls.chances[min(to_arm-1, 1)][min(fr_arm-2, 2)]
     
     # ======================= #
     # == Exception methods == #
@@ -201,6 +208,7 @@ class SmartPlayer (Player, SmartReinforceMixin, BasicAttackMixin, BasicFortifyMi
 import genome    
     
 class GeneticPlayer (Player, genome.Genome, BasicAttackMixin, BasicFortifyMixin):
+    
     specifications = (
         {'name': 'vantage_wgt', 'dtype': float, 'min_value': -1., 'max_value': 1., 
          'volatility': 0.25, 'granularity': 0.15, 'digits': 2},
@@ -208,7 +216,12 @@ class GeneticPlayer (Player, genome.Genome, BasicAttackMixin, BasicFortifyMixin)
          'volatility': 0.25, 'granularity': 0.15, 'digits': 2},
         {'name': 'continent_wgt', 'dtype': float, 'min_value': -1., 'max_value': 1., 
          'volatility': 0.25, 'granularity': 0.15, 'digits': 2},
-        {'name': 'turn_in_cutoff', 'dtype': list, 'values': [4, 6, 8, 10], 'volatility': 0.1}
+        {'name': 'turn_in_cutoff', 'dtype': list, 'values': [4, 6, 8, 10], 'volatility': 0.05},
+        {'name': 'att_prob_wgt', 'dtype': float, 'min_value': -2., 'max_value': 2.,
+         'volatility': 0.10, 'granularity': 0.15, 'digits': 2},
+        {'name': 'att_mis_wgt', 'dtype': list, 'values': [-1, 0, 1], 'volatility': 0.10},
+        {'name': 'min_att_wgt', 'dtype': float, 'min_value': -5, 'max_value': +5,
+         'volatility': 0.10, 'granularity': 0.25, 'digits': 1}
     )
 
     def turn_in_cards(self):
@@ -220,6 +233,21 @@ class GeneticPlayer (Player, genome.Genome, BasicAttackMixin, BasicFortifyMixin)
         if armies >= self['turn_in_cutoff']:
             return best_set
         return None      
+
+    def attack(self):
+        possible_attacks = self.possible_attacks()
+        if len(possible_attacks) == 0: return None
+        attack = max(possible_attacks,
+                     key=lambda x: self.attack_weight(*x))
+        if self.attack_weight(*attack) < self['min_att_wgt']: return None
+        fr_tid, fr_arm, to_tid, to_pid, to_arm = attack
+        return fr_tid, to_tid, fr_arm-1     
+    
+    def attack_weight(self, *attack):
+        probability_value = self.probability(*attack)
+        mission_value      = self.mission_value(attack[2])
+        return (probability_value * self['att_prob_wgt'] +
+                mission_value * self['att_mis_wgt'])
     
     def territory_weight(self, territory_id):
         vantage         = -self.territory_vantage(territory_id)

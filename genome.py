@@ -31,8 +31,31 @@ class Genome (object):
         Genomes can be created using the create method, which will randomly initialize the genes. """
         
     def __init__(self, genes={}):
+        assert set(genes.keys()) == set(self.gene_names), '{cls}: gene definitions do not match'
         self.genes = genes
         
+
+    @classmethod
+    def create(cls):
+        """ Create a Genome. 
+        
+            Returns:
+                Genome: a randomly initialized genome. """
+        return cls(genes={
+            spec['name']: cls.initialize(**spec) for spec in cls.specifications
+        })    
+    
+    @classmethod
+    def from_dict(cls, genes):
+        """ Create a genome from a dict.
+        
+            Returns:
+                Genome: a genome initialized from a dict. """
+        return cls(genes={
+            spec['name']: (genes[spec['name']] if spec['name'] in genes else cls.initialize(**spec))
+                for spec in cls.specifications     
+        })
+    
     def __repr__(self):
         return '{cls}({val})'.format(
             cls=self.__class__.__name__, 
@@ -47,15 +70,7 @@ class Genome (object):
     def __getitem__(self, key):
         return self.genes[key]
 
-    @classmethod
-    def create(cls):
-        """ Create a Genome. 
-        
-            Returns:
-                Genome: a randomly initialized genome. """
-        return cls(genes={
-            spec['name']: cls.initialize(**spec) for spec in cls.specifications
-        })
+
 
     def combine(self, other):
         """ Combine with another Genome.

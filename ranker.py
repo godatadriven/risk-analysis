@@ -58,13 +58,16 @@ class RiskRanker (TrueskillRanker):
                 
     def play_game(self, player_ids):
         players = [self.players[pid] for pid in player_ids]
+        for pid in player_ids:
+            assert id(self.players[pid]) == pid, 'Player changed id!'
         g = game.Game.create(players)
         g.initialize_armies()
         for i in range(self.max_turns):
             g.play_turn()
             if g.has_ended(): break
-        winner_pid = id(g.winner())
-        self.update([winner_pid], [pid for pid in player_ids if winner_pid != pid])
+        if g.winner() is not None:
+            winner_pid = id(g.winner())
+            self.update([winner_pid], [pid for pid in player_ids if winner_pid != pid])
         for p in players:
             p.clear()
             
