@@ -96,9 +96,46 @@ class Player (object):
         continent_id = definitions.territory_continents[territory_id]
         return self.board.continent_fraction(continent_id, self.player_id) * definitions.continent_bonuses[continent_id] 
     
+    def direct_bonus(self, territory_id):
+        """ Returns the direct bonus increase or loss if this territory changes owner.
+            If the territory is part of a continent fully owned by this player,
+            or the territory is the only territory on a continent NOT owned by this player,
+            the number of bonus armies for this continent is returned. Otherwise
+            the return value is zero. """
+        continent_id = definitions.territory_continents[territory_id]
+        if self.board.owner(territory_id) == self.player_id:
+            if self.board.num_foreign_continent_territories(continent_id, self.player_id) == 0:
+                return definitions.continent_bonuses[continent_id]
+        else:
+            if self.board.num_foreign_continent_territories(continent_id, self.player_id) == 1:
+                return definitions.continent_bonuses[continent_id] 
+        return 0.
+    
     @classmethod
-    def probability(cls, fr_tid, fr_arm, to_tid, to_pid, to_arm):
+    def chance_ratio(cls, fr_tid, fr_arm, to_tid, to_pid, to_arm):
+        """ Calculate the ratio of the chances to lose armies to
+            inflicting damage to foreign armies. This only depends
+            on the number of dices.
+            
+            Returns:
+                float: chance ratio, where lower is better [0.5, 3]. """
         return cls.chances[min(to_arm-1, 1)][min(fr_arm-2, 2)]
+    
+    @staticmethod
+    def conquering_chance(fr_tid, fr_arm, to_tid, to_pid, to_arm):
+        """ This function provides an estimate of the probability to
+            conquer a territory based on the number of attacking and
+            defending armies. This estimate is accurate at the 1% level. 
+            
+            Returns: 
+                float: chance of conquering the territory [0, 1]. """
+        n_att = fr_arm - 1.
+        n_def = to_arm
+        if n_att < 1: return 0.
+        if n_att > n_def:
+            return (n_att * 1.5) / (n_att + n_def)
+        else:
+            return (n_att * 1.25) / (n_att + n_def)
     
     # ======================= #
     # == Exception methods == #
@@ -217,10 +254,14 @@ class GeneticPlayer (Player, genome.Genome, BasicAttackMixin, BasicFortifyMixin)
         {'name': 'continent_wgt', 'dtype': float, 'min_value': -1., 'max_value': 1., 
          'volatility': 0.25, 'granularity': 0.15, 'digits': 2},
         {'name': 'turn_in_cutoff', 'dtype': list, 'values': [4, 6, 8, 10], 'volatility': 0.05},
-        {'name': 'att_prob_wgt', 'dtype': float, 'min_value': -2., 'max_value': 2.,
-         'volatility': 0.10, 'granularity': 0.15, 'digits': 2},
+        {'name': 'att_bonus_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
+         'volatility': 0.10, 'granularity': 0.10, 'digits': 2},
+        {'name': 'att_chance_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
+         'volatility': 0.10, 'granularity': 0.10, 'digits': 2},
+        {'name': 'att_conqc_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
+         'volatility': 0.10, 'granularity': 0.10, 'digits': 2},
         {'name': 'att_mis_wgt', 'dtype': list, 'values': [-1, 0, 1], 'volatility': 0.10},
-        {'name': 'min_att_wgt', 'dtype': float, 'min_value': -5, 'max_value': +5,
+        {'name': 'att_min_val', 'dtype': float, 'min_value': -10, 'max_value': +10,
          'volatility': 0.10, 'granularity': 0.25, 'digits': 1}
     )
 
@@ -239,14 +280,18 @@ class GeneticPlayer (Player, genome.Genome, BasicAttackMixin, BasicFortifyMixin)
         if len(possible_attacks) == 0: return None
         attack = max(possible_attacks,
                      key=lambda x: self.attack_weight(*x))
-        if self.attack_weight(*attack) < self['min_att_wgt']: return None
+        if self.attack_weight(*attack) < self['att_min_val']: return None
         fr_tid, fr_arm, to_tid, to_pid, to_arm = attack
         return fr_tid, to_tid, fr_arm-1     
     
     def attack_weight(self, *attack):
-        probability_value = self.probability(*attack)
+        direct_bonus_value = self.direct_bonus(attack[2])
+        chance_ratio_value = self.chance_ratio(*attack)
+        conq_chance_value  = self.conquering_chance(*attack)
         mission_value      = self.mission_value(attack[2])
-        return (probability_value * self['att_prob_wgt'] +
+        return (direct_bonus_value * self['att_bonus_wgt'] +
+                chance_ratio_value * self['att_chance_wgt'] +
+                conq_chance_value * self['att_conqc_wgt'] +
                 mission_value * self['att_mis_wgt'])
     
     def territory_weight(self, territory_id):

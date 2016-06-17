@@ -214,6 +214,19 @@ class Board (object):
         c_data = list(self.continent(continent_id))
         p_data = [(tid, pid, arm) for (tid, pid, arm) in c_data if pid == player_id]
         return float(len(p_data)) / len(c_data)
+    
+    def num_foreign_continent_territories(self, continent_id, player_id):
+        """ Compute the number of territories on a continent owned by other players.
+        
+            Args:
+                continent_id (int): ID of the continent.
+                player_id (int): ID of the player.
+            
+            Returns:
+                int: The number of territories on the continent owned by other player. """
+        return sum(1 if pid != player_id else 0 
+                   for (tid, pid, arm) 
+                   in self.continent(continent_id))
 
     # ==================== #
     # == Action Methods == #

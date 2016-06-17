@@ -13,11 +13,12 @@ class Genome (object):
         This variable should be an iterable (tuple) containing a dictionary for each gene
         the genome has. Genes can have one of four dtypes: bool, int, float, list. The 
         specification dictionaries for these types are:
-        - bool: {'dtype': bool, 'name': '{name}', 'volatility': {volatility}}
-        - int: {'dtype': int, 'name': '{name}', 'volatility': {volatility}, 'min_value': {min}, 'max_value': {max}}
+        - bool: {'dtype': bool, 'name': '{name}', 'volatility': {volatility}, 'enabled': True}
+        - int: {'dtype': int, 'name': '{name}', 'volatility': {volatility}, 
+                'min_value': {min}, 'max_value': {max}, 'enabled': True}
         - float: {'dtype': float, 'name': '{name}', 'volatility': {volatility}, 
-                  'min_value': {min}, 'max_value': {max}, 'granularity': {g}, 'digits': {d}}
-        - list: {'dtype': list, 'name': '{name}', 'volatility': {volatility}, 'values': [values]}
+                  'min_value': {min}, 'max_value': {max}, 'granularity': {g}, 'digits': {d}, 'enabled': True}
+        - list: {'dtype': list, 'name': '{name}', 'volatility': {volatility}, 'values': [values], 'enabled': True}
         The keys are:
         - dtype: the dtype of the gene,
         - name (str): the name of the gene,
@@ -27,6 +28,7 @@ class Genome (object):
         - granularity (float): the order of magnitude for mutations,
         - digits (int): the number of significant digits,
         - values (list): the allowed values for the gene. 
+        - enabled (bool): if False, it may not mutate
         
         Genomes can be created using the create method, which will randomly initialize the genes. """
         
@@ -110,7 +112,16 @@ class Genome (object):
     def gene_names(self):
         """ Returns an iterator over all gene names in the specification. """
         return (spec['name'] for spec in self.specifications)        
-        
+
+    def check_gene(self, name, dtype, **spec):
+        assert name in self.genes, \
+            '{cls}: gene "{name}" is missing!'.format(cls=self.__class__.__name__, name=name)
+        value = self.genes[name]
+        assert dtype == type(value), \
+            '{cls}: gene "{name}" has wrong dtype ({dtype})'.format(cls=self.__class__.__name__,
+                                                                    name=name, dtype=type(value))
+        # TODO: add checks, fux above for list
+    
     def mutate_gene(self, name, dtype, volatility, **kwargs):
         """ Mutate a gene according to a specification. """
         value = self.genes[name]
