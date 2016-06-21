@@ -54,19 +54,9 @@ class Player (object):
     @staticmethod
     def army_ratio(fr_tid, fr_arm, to_tid, to_pid, to_arm):
         return float(fr_arm-1) / to_arm
-    
-    def army_vantage(self, territory_id):
-        own_armies = self.board.armies(territory_id)
-        htl_armies = sum([arm for tid, pid, arm in self.board.hostile_neighbors(territory_id)])
-        return float(own_armies) / (htl_armies+0.01)
-    
-    def territory_vantage(self, territory_id):
-        hn_count = len(list(self.board.hostile_neighbors(territory_id)))
-        fn_count = len(list(self.board.friendly_neighbors(territory_id)))
-        return float(fn_count) / (0.01 + hn_count)
 
     def army_vantage_ratio(self, fr_tid, fr_arm, to_tid, to_pid, to_arm):
-        return self.army_vantage(fr_tid) / self.army_vantage(to_tid)    
+        return self.army_vantage(fr_tid) - self.army_vantage(to_tid)    
     
     def mission_value(self, territory_id):
         if isinstance(self.mission, missions.PlayerMission):
@@ -96,20 +86,56 @@ class Player (object):
         continent_id = definitions.territory_continents[territory_id]
         return self.board.continent_fraction(continent_id, self.player_id) * definitions.continent_bonuses[continent_id] 
     
+    def army_vantage(self, territory_id):
+        """ Returns the ratio of hostile armies surrounding a territory
+            to the friendly armies on the territory.
+            
+            Returns:
+                float: army vantage [0, 1> """
+        own_armies = self.board.armies(territory_id)
+        htl_armies = sum(arm for tid, pid, arm in self.board.hostile_neighbors(territory_id))
+        return float(htl_armies) / (htl_armies + own_armies)
+    
+    def territory_vantage(self, territory_id):
+        """ Calculates the fraction of neighboring territories
+            that are hostile.
+            
+            Returns:
+                float: fraction of neighbors that are hostily [0, 1]. """
+        htl_nb = len(list(self.board.hostile_neighbors(territory_id)))
+        own_nb = len(list(self.board.friendly_neighbors(territory_id)))
+        return float(htl_nb) / (htl_nb + own_nb)
+    
     def direct_bonus(self, territory_id):
-        """ Returns the direct bonus increase or loss if this territory changes owner.
-            If the territory is part of a continent fully owned by this player,
-            or the territory is the only territory on a continent NOT owned by this player,
-            the number of bonus armies for this continent is returned. Otherwise
-            the return value is zero. """
+        """ Returns the direct bonus value of a territory, which is the continent bonus
+            if the territory is the only territory of the continent not yet owned by
+            the player, or the player owns the whole territory, normalised.
+            
+            Args:
+                territory_id (int): territory ID for which to calculate the indirect bonus.
+                
+            Returns:
+                float [0, 1]: the direct bonus. """
         continent_id = definitions.territory_continents[territory_id]
-        if self.board.owner(territory_id) == self.player_id:
-            if self.board.num_foreign_continent_territories(continent_id, self.player_id) == 0:
-                return definitions.continent_bonuses[continent_id]
-        else:
-            if self.board.num_foreign_continent_territories(continent_id, self.player_id) == 1:
-                return definitions.continent_bonuses[continent_id] 
+        num_foreign_territories = self.board.num_foreign_continent_territories(continent_id, self.player_id)
+        if num_foreign_territories == 0 and self.board.owner(territory_id) == self.player_id:
+            return definitions.continent_bonuses[continent_id] / 7.
+        elif num_foreign_territories == 1 and self.board.owner(territory_id) != self.player_id:
+            return definitions.continent_bonuses[continent_id] / 7.
         return 0.
+    
+    def indirect_bonus(self, territory_id):
+        """ Returns the bonus value of a territory, which is defined as
+               <fraction of continent player owns> * <continent bonus>, 
+            normalised such that the result lies in [0, 1].
+            
+            Args:
+                territory_id (int): territory ID for which to calculate the indirect bonus.
+                
+            Returns:
+                float [0, 1]: the indirect bonus. """
+        continent_id = definitions.territory_continents[territory_id]
+        return self.board.continent_fraction(continent_id, self.player_id) * definitions.continent_bonuses[continent_id] / 7.
     
     @classmethod
     def chance_ratio(cls, fr_tid, fr_arm, to_tid, to_pid, to_arm):
@@ -247,13 +273,8 @@ import genome
 class GeneticPlayer (Player, genome.Genome, BasicAttackMixin, BasicFortifyMixin):
     
     specifications = (
-        {'name': 'vantage_wgt', 'dtype': float, 'min_value': -1., 'max_value': 1., 
-         'volatility': 0.25, 'granularity': 0.15, 'digits': 2},
-        {'name': 'mission_wgt', 'dtype': float, 'min_value': -1., 'max_value': 1., 
-         'volatility': 0.25, 'granularity': 0.15, 'digits': 2},
-        {'name': 'continent_wgt', 'dtype': float, 'min_value': -1., 'max_value': 1., 
-         'volatility': 0.25, 'granularity': 0.15, 'digits': 2},
         {'name': 'turn_in_cutoff', 'dtype': list, 'values': [4, 6, 8, 10], 'volatility': 0.05},
+        
         {'name': 'att_bonus_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
          'volatility': 0.10, 'granularity': 0.10, 'digits': 2},
         {'name': 'att_chance_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
@@ -262,7 +283,18 @@ class GeneticPlayer (Player, genome.Genome, BasicAttackMixin, BasicFortifyMixin)
          'volatility': 0.10, 'granularity': 0.10, 'digits': 2},
         {'name': 'att_mis_wgt', 'dtype': list, 'values': [-1, 0, 1], 'volatility': 0.10},
         {'name': 'att_min_val', 'dtype': float, 'min_value': -10, 'max_value': +10,
-         'volatility': 0.10, 'granularity': 0.25, 'digits': 1}
+         'volatility': 0.10, 'granularity': 0.25, 'digits': 1},
+        
+        {'name': 're_dbonus_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
+         'volatility': 0.10, 'granularity': 0.10, 'digits': 2},
+        {'name': 're_ibonus_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
+         'volatility': 0.10, 'granularity': 0.10, 'digits': 2},
+        {'name': 're_mission_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
+         'volatility': 0.10, 'granularity': 0.10, 'digits': 2},   
+        {'name': 're_avantage_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
+         'volatility': 0.10, 'granularity': 0.10, 'digits': 2},
+        {'name': 're_tvantage_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
+         'volatility': 0.10, 'granularity': 0.10, 'digits': 2},   
     )
 
     def turn_in_cards(self):
@@ -280,6 +312,7 @@ class GeneticPlayer (Player, genome.Genome, BasicAttackMixin, BasicFortifyMixin)
         if len(possible_attacks) == 0: return None
         attack = max(possible_attacks,
                      key=lambda x: self.attack_weight(*x))
+        # TODO: add extra weight if no card yet
         if self.attack_weight(*attack) < self['att_min_val']: return None
         fr_tid, fr_arm, to_tid, to_pid, to_arm = attack
         return fr_tid, to_tid, fr_arm-1     
@@ -294,16 +327,23 @@ class GeneticPlayer (Player, genome.Genome, BasicAttackMixin, BasicFortifyMixin)
                 conq_chance_value * self['att_conqc_wgt'] +
                 mission_value * self['att_mis_wgt'])
     
-    def territory_weight(self, territory_id):
-        vantage         = -self.territory_vantage(territory_id)
-        mission_value   = self.mission_value(territory_id)
-        continent_value = self.continent_value(territory_id)
-        return (vantage*self['vantage_wgt'] + mission_value*self['mission_wgt'] + continent_value*self['continent_wgt'])
-    
     def reinforce(self):
         options = self.my_territories()
         if isinstance(self.mission, missions.TerritoryMission) and len(options) >= 18:
             options = [o for o in options if self.board.armies(o) < 2]
             if len(options) == 0: # in this case the player has in principle won, but the turn needs to be completed to win
                 options = self.my_territories()
-        return max(options, key=lambda tid: self.territory_weight(tid))
+        return max(options, key=lambda tid: self.reinforce_weight(tid))
+    
+    def reinforce_weight(self, territory_id):
+        return sum((self.direct_bonus(territory_id) * self['re_dbonus_wgt'],
+                    self.indirect_bonus(territory_id) * self['re_ibonus_wgt'],
+                    self.mission_value(territory_id) * self['re_mission_wgt'],
+                    self.army_vantage(territory_id) * self['re_avantage_wgt'],
+                    self.territory_vantage(territory_id) * self['re_tvantage_wgt']))
+            
+            
+            
+            
+            
+        
