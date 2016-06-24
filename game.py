@@ -275,8 +275,8 @@ class Game (object):
         """ Plot the turn. """
         if self.current_player >= 0:
             if self.has_ended():
-                color = definitions.player_colors[self.winner()]
-                mission = self.missions[self.winner()].description
+                color = self.winner().color
+                mission = self.winner().mission.description
                 content = 'Winner: {p} - {m}\nTotal turns {nr}'.format(nr=self.turn, p=color, m=mission)
             else:
                 color = definitions.player_colors[self.current_player_id]

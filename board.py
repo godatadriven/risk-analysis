@@ -341,7 +341,7 @@ class Board (object):
     def plot_board(self):
         """ Plot the board. """
         im = plt.imread(os.getcwd() + '/risk.png')
-        plt.figure(figsize=(10, 15))
+        plt.figure(figsize=(16, 24))
         implot = plt.imshow(im)
         for territory, owner, armies in self.data:
             self.plot_single(territory, owner, armies)
@@ -354,10 +354,10 @@ class Board (object):
                 player_id (int): the player id of the owner,
                 armies (int): the number of armies. """
         coor = definitions.territory_locations[territory_id]
-        plt.scatter([coor[0]], [coor[1]], s = 300, c=definitions.player_colors[player_id])
-        plt.text(coor[0], coor[1]+12, s=str(armies), 
+        plt.scatter([coor[0]], [coor[1]], s = 1250, c=definitions.player_colors[player_id])
+        plt.text(coor[0], coor[1]+25, s=str(armies), 
                  color='black' if definitions.player_colors[player_id] in ['yellow', 'pink'] else 'white',
-                 ha='center', size='x-large')    
+                 ha='center', size=30)    
     
     # ==================== #
     # == Combat Methods == #
