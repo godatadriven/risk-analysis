@@ -32,7 +32,7 @@ class Player (object):
 
     @property
     def color(self):
-        return definitions.player_color[self.player_id]        
+        return definitions.player_colors[self.player_id]        
         
     @property
     def description(self):
@@ -183,7 +183,7 @@ class RandomReinforceMixin (object):
     
 class RandomAttackMixin (object):
     
-    def attack(self):
+    def attack(self, won_yet):
         if random.random() > 0.90 and self.board.n_armies(self.player_id) < 50:
             return None
         possible_attacks = self.possible_attacks()
@@ -223,7 +223,7 @@ class BasicReinforceMixin (RuleBasedCardsBase):
 
 class BasicAttackMixin (object):
     
-    def attack(self):
+    def attack(self, won_yet):
         possible_attacks = self.possible_attacks()
         if len(possible_attacks) == 0: return None
         attack = max(possible_attacks,
@@ -270,7 +270,7 @@ class SmartPlayer (Player, SmartReinforceMixin, BasicAttackMixin, BasicFortifyMi
     
 import genome    
     
-class GeneticPlayer (Player, genome.Genome, BasicAttackMixin, BasicFortifyMixin):
+class GeneticPlayer (Player, genome.Genome, BasicFortifyMixin):
     
     specifications = (
         {'name': 'turn_in_cutoff', 'dtype': list, 'values': [4, 6, 8, 10], 'volatility': 0.05},
@@ -279,11 +279,23 @@ class GeneticPlayer (Player, genome.Genome, BasicAttackMixin, BasicFortifyMixin)
          'volatility': 0.10, 'granularity': 0.10, 'digits': 2},
         {'name': 'att_chance_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
          'volatility': 0.10, 'granularity': 0.10, 'digits': 2},
-        {'name': 'att_conqc_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
+        {'name': 'att_conqc_wgt', 'dtype': float, 'min_value': -5., 'max_value': 10.,
          'volatility': 0.10, 'granularity': 0.10, 'digits': 2},
         {'name': 'att_mis_wgt', 'dtype': list, 'values': [-1, 0, 1], 'volatility': 0.10},
         {'name': 'att_min_val', 'dtype': float, 'min_value': -10, 'max_value': +10,
          'volatility': 0.10, 'granularity': 0.25, 'digits': 1},
+        {'name': 'att_won_comp', 'dtype': float, 'min_value': -10, 'max_value': +10,
+         'volatility': 0.10, 'granularity': 0.25, 'digits': 1},
+        
+        {'name': 'mis_base_wgt', 'dtype': float, 'min_value': -5, 'max_value': +5,
+         'volatility': 0.10, 'granularity': 0.25, 'digits': 2},
+        {'name': 'mis_cont_wgt', 'dtype': float, 'min_value': -5, 'max_value': +5,
+         'volatility': 0.10, 'granularity': 0.25, 'digits': 2},
+        {'name': 'mis_extr_wgt', 'dtype': float, 'min_value': -5, 'max_value': +5,
+         'volatility': 0.10, 'granularity': 0.25, 'digits': 2},
+        {'name': 'mis_play_wgt', 'dtype': float, 'min_value': -5, 'max_value': +5,
+         'volatility': 0.10, 'granularity': 0.25, 'digits': 2},        
+        {'name': 'mis_terr_wgt', 'dtype': list, 'values': [-1, 0, 1], 'volatility': 0.10},
         
         {'name': 're_dbonus_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
          'volatility': 0.10, 'granularity': 0.10, 'digits': 2},
@@ -295,7 +307,38 @@ class GeneticPlayer (Player, genome.Genome, BasicAttackMixin, BasicFortifyMixin)
          'volatility': 0.10, 'granularity': 0.10, 'digits': 2},
         {'name': 're_tvantage_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
          'volatility': 0.10, 'granularity': 0.10, 'digits': 2},   
+        
+        {'name': 'ft_min_wgt', 'dtype': float, 'min_value': -10., 'max_value': 10.,
+         'volatility': 0.05, 'granularity': 0.10, 'digits': 2},   
+        {'name': 'ft_avantage_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
+         'volatility': 0.05, 'granularity': 0.10, 'digits': 2},
+        {'name': 'ft_tvantage_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
+         'volatility': 0.05, 'granularity': 0.10, 'digits': 2},   
+        {'name': 'ft_narmies_wgt', 'dtype': list, 'values': [-1, 0, 1], 'volatility': 0.05},
+
+
     )
+    
+    def mission_value(self, territory_id):
+        if isinstance(self.mission, missions.PlayerMission):
+            if self.mission.target_id == self.player_id:
+                return self['mis_base_wgt'] if (self.board.n_territories(self.player_id) < 24) else 0.
+            else:
+                return self['mis_play_wgt'] if (self.board.owner(territory_id) == self.mission.target_id) else 0.
+        elif isinstance(self.mission, missions.ContinentMission):
+            continent_id = definitions.territory_continents[territory_id]
+            if continent_id in self.mission.continents:
+                return self['mis_cont_wgt']
+            elif isinstance(self.mission, missions.ExtraContinentMission):
+                if not any(self.board.owns_continent(self.player_id, cid) for cid in self.mission.other_continents):
+                    return self['mis_extr_wgt'] * self.board.continent_fraction(continent_id, self.player_id)
+            return 0.
+        elif isinstance(self.mission, missions.BaseMission):
+            return self['mis_base_wgt'] if (self.board.n_territories(self.player_id) < 24) else 0.
+        elif isinstance(self.mission, missions.TerritoryMission):
+            return self['mis_terr_wgt'] if (self.board.n_territories(self.player_id) < 18) else 0.
+        else:
+            raise Exception('Player: unknown mission: {m}'.format(m=self.mission))    
 
     def turn_in_cards(self):
         complete_sets = {sn: arm for sn, arm in self.cards.complete_sets}
@@ -307,13 +350,12 @@ class GeneticPlayer (Player, genome.Genome, BasicAttackMixin, BasicFortifyMixin)
             return best_set
         return None      
 
-    def attack(self):
+    def attack(self, won_yet):
         possible_attacks = self.possible_attacks()
         if len(possible_attacks) == 0: return None
         attack = max(possible_attacks,
                      key=lambda x: self.attack_weight(*x))
-        # TODO: add extra weight if no card yet
-        if self.attack_weight(*attack) < self['att_min_val']: return None
+        if self.attack_weight(*attack) < self.min_attack_weight(won_yet): return None
         fr_tid, fr_arm, to_tid, to_pid, to_arm = attack
         return fr_tid, to_tid, fr_arm-1     
     
@@ -326,6 +368,25 @@ class GeneticPlayer (Player, genome.Genome, BasicAttackMixin, BasicFortifyMixin)
                 chance_ratio_value * self['att_chance_wgt'] +
                 conq_chance_value * self['att_conqc_wgt'] +
                 mission_value * self['att_mis_wgt'])
+                                          
+    def min_attack_weight(self, won_yet):
+        return self['att_min_val'] + (self['att_won_comp'] if not won_yet else 0.)
+
+    def fortify(self):
+        possible_fortifications = self.possible_fortifications()
+        if len(possible_fortifications) == 0: return None
+        fortification = max(possible_fortifications,
+                            key=lambda x: self.fortification_weight(*x))
+        if self.fortification_weight(*fortification) < self['ft_min_wgt']: return None
+        fr_tid, fr_arm, to_tid, to_pid, to_arm = fortification
+        return fr_tid, to_tid, fr_arm-1      
+    
+    def fortification_weight(self, fr_tid, fr_arm, to_tid, to_pid, to_arm):
+        return sum((
+                (self.army_vantage(fr_tid) - self.army_vantage(to_tid)) * self['ft_avantage_wgt'],
+                (self.territory_vantage(fr_tid) - self.territory_vantage(to_tid)) * self['ft_tvantage_wgt'],
+                (fr_arm - 1) * self['ft_narmies_wgt']
+        ))
     
     def reinforce(self):
         options = self.my_territories()
