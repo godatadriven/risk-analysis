@@ -59,7 +59,7 @@ class Cards (object):
         return sum(self.cards)    
     
     def receive(self):
-        """ Receive a card. """
+        """ Receive a card. Randomly picks a card and adds it to the hand. """
         card_type = random.randint(0,2)
         self.cards[card_type] += 1
         
