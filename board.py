@@ -1,12 +1,24 @@
 import definitions
-import os
-import random
+import os, random
 import matplotlib.pyplot as plt
 
 
 class Board (object):
+    """ The Board object keeps track of all armies situated on the Risk
+        world map. Through the definitions it knows the locations of and
+        connections between all territories. It handles ownership, attacks
+        and movements of armies. """
     
     def __init__(self, data):
+        """ Initialize a Board from the data. 
+        
+            Args:
+                data (list): a sorted list of tuples describing the state of the 
+                    board, each containing three values:
+                    - tid (int): the territory id of a territory,
+                    - pid (int): the player id of the owner of the territory,
+                    - n_armies (int): the number of armies on the territory. 
+                    The list is sorted by the tid, and should be complete. """
         self.data = data
     
     @classmethod
@@ -335,7 +347,12 @@ class Board (object):
             self.plot_single(territory, owner, armies)
         
     def plot_single(self, territory_id, player_id, armies):
-        """ Plot a single army dot. """
+        """ Plot a single army dot.
+            
+            Args:
+                territory_id (int): the id of the territory to plot,
+                player_id (int): the player id of the owner,
+                armies (int): the number of armies. """
         coor = definitions.territory_locations[territory_id]
         plt.scatter([coor[0]], [coor[1]], s = 300, c=definitions.player_colors[player_id])
         plt.text(coor[0], coor[1]+12, s=str(armies), 
