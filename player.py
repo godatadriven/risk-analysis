@@ -273,48 +273,53 @@ import genome
 class GeneticPlayer (Player, genome.Genome, BasicFortifyMixin):
     
     specifications = (
-        {'name': 'turn_in_cutoff', 'dtype': list, 'values': [4, 6, 8, 10], 'volatility': 0.05},
+        {'name': 'turn_in_cutoff', 'dtype': list, 'values': [4, 6, 8, 10], 'volatility': 0.01},
         
-        {'name': 'att_bonus_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
-         'volatility': 0.10, 'granularity': 0.10, 'digits': 2},
-        {'name': 'att_chance_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
-         'volatility': 0.10, 'granularity': 0.10, 'digits': 2},
-        {'name': 'att_conqc_wgt', 'dtype': float, 'min_value': -5., 'max_value': 10.,
-         'volatility': 0.10, 'granularity': 0.10, 'digits': 2},
-        {'name': 'att_mis_wgt', 'dtype': list, 'values': [-1, 0, 1], 'volatility': 0.10},
-        {'name': 'att_min_val', 'dtype': float, 'min_value': -10, 'max_value': +10,
-         'volatility': 0.10, 'granularity': 0.25, 'digits': 1},
-        {'name': 'att_won_comp', 'dtype': float, 'min_value': -10, 'max_value': +10,
-         'volatility': 0.10, 'granularity': 0.25, 'digits': 1},
+        {'name': 'att_bonus_wgt', 'dtype': float, 'min_value': -10., 'max_value': 10.,
+         'volatility': 0.03, 'granularity': 0.10, 'digits': 2},
+        {'name': 'att_chance_wgt', 'dtype': float, 'min_value': -10., 'max_value': 10.,
+         'volatility': 0.03, 'granularity': 0.10, 'digits': 2},
+        {'name': 'att_conqc_wgt', 'dtype': float, 'min_value': -25., 'max_value': 25.,
+         'volatility': 0.03, 'granularity': 0.10, 'digits': 2},
+        {'name': 'att_narmies_wgt', 'dtype': float, 'min_value': -10., 'max_value': 10.,
+         'volatility': 0.03, 'granularity': 0.10, 'digits': 2},
+        {'name': 'att_mission_wgt', 'dtype': list, 'values': [-1, 0, 1], 'volatility': 0.01},
+        {'name': 'att_cutoff', 'dtype': float, 'min_value': -10, 'max_value': +10,
+         'volatility': 0.03, 'granularity': 0.25, 'digits': 1},
+        {'name': 'att_cutoff_win', 'dtype': float, 'min_value': -10, 'max_value': +10,
+         'volatility': 0.015, 'granularity': 0.25, 'digits': 1},
         
         {'name': 'mis_base_wgt', 'dtype': float, 'min_value': -5, 'max_value': +5,
-         'volatility': 0.10, 'granularity': 0.25, 'digits': 2},
+         'volatility': 0.01, 'granularity': 0.25, 'digits': 2},
         {'name': 'mis_cont_wgt', 'dtype': float, 'min_value': -5, 'max_value': +5,
-         'volatility': 0.10, 'granularity': 0.25, 'digits': 2},
+         'volatility': 0.01, 'granularity': 0.25, 'digits': 2},
         {'name': 'mis_extr_wgt', 'dtype': float, 'min_value': -5, 'max_value': +5,
-         'volatility': 0.10, 'granularity': 0.25, 'digits': 2},
-        {'name': 'mis_play_wgt', 'dtype': float, 'min_value': -5, 'max_value': +5,
-         'volatility': 0.10, 'granularity': 0.25, 'digits': 2},        
-        {'name': 'mis_terr_wgt', 'dtype': list, 'values': [-1, 0, 1], 'volatility': 0.10},
+         'volatility': 0.01, 'granularity': 0.25, 'digits': 2},
+        {'name': 'mis_terr_wgt', 'dtype': float, 'min_value': -5, 'max_value': +5,
+         'volatility': 0.01, 'granularity': 0.25, 'digits': 2},        
+        {'name': 'mis_play_wgt', 'dtype': list, 'values': [-1, 0, 1], 'volatility': 0.005},
         
-        {'name': 're_dbonus_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
-         'volatility': 0.10, 'granularity': 0.10, 'digits': 2},
-        {'name': 're_ibonus_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
-         'volatility': 0.10, 'granularity': 0.10, 'digits': 2},
-        {'name': 're_mission_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
-         'volatility': 0.10, 'granularity': 0.10, 'digits': 2},   
-        {'name': 're_avantage_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
-         'volatility': 0.10, 'granularity': 0.10, 'digits': 2},
-        {'name': 're_tvantage_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
-         'volatility': 0.10, 'granularity': 0.10, 'digits': 2},   
+        {'name': 're_dbonus_wgt', 'dtype': float, 'min_value': -10., 'max_value': 10.,
+         'volatility': 0.02, 'granularity': 0.10, 'digits': 2},
+        {'name': 're_ibonus_wgt', 'dtype': float, 'min_value': -10., 'max_value': 10.,
+         'volatility': 0.02, 'granularity': 0.10, 'digits': 2},
+        {'name': 're_mission_wgt', 'dtype': list, 'values': [-1, 0, 1], 'volatility': 0.01},
+        {'name': 're_avantage_wgt', 'dtype': float, 'min_value': -10., 'max_value': 10.,
+         'volatility': 0.02, 'granularity': 0.10, 'digits': 2},
+        {'name': 're_tvantage_wgt', 'dtype': float, 'min_value': -15., 'max_value': 15.,
+         'volatility': 0.02, 'granularity': 0.10, 'digits': 2},   
         
         {'name': 'ft_min_wgt', 'dtype': float, 'min_value': -10., 'max_value': 10.,
-         'volatility': 0.05, 'granularity': 0.10, 'digits': 2},   
-        {'name': 'ft_avantage_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
-         'volatility': 0.05, 'granularity': 0.10, 'digits': 2},
-        {'name': 'ft_tvantage_wgt', 'dtype': float, 'min_value': -5., 'max_value': 5.,
-         'volatility': 0.05, 'granularity': 0.10, 'digits': 2},   
-        {'name': 'ft_narmies_wgt', 'dtype': list, 'values': [-1, 0, 1], 'volatility': 0.05},
+         'volatility': 0.01, 'granularity': 0.10, 'digits': 2},   
+        {'name': 'ft_avantage_wgt', 'dtype': float, 'min_value': -10., 'max_value': 10.,
+         'volatility': 0.01, 'granularity': 0.10, 'digits': 2},
+        {'name': 'ft_tvantage_wgt', 'dtype': float, 'min_value': -10., 'max_value': 10.,
+         'volatility': 0.01, 'granularity': 0.10, 'digits': 2},   
+        {'name': 'ft_mission_wgt', 'dtype': float, 'min_value': -10., 'max_value': 10.,
+         'volatility': 0.01, 'granularity': 0.10, 'digits': 2},   
+        {'name': 'ft_bonus_wgt', 'dtype': float, 'min_value': -10., 'max_value': 10.,
+         'volatility': 0.01, 'granularity': 0.10, 'digits': 2},
+        {'name': 'ft_narmies_wgt', 'dtype': list, 'values': [-1, 0, 1], 'volatility': 0.005},
 
 
     )
@@ -360,17 +365,17 @@ class GeneticPlayer (Player, genome.Genome, BasicFortifyMixin):
         return fr_tid, to_tid, fr_arm-1     
     
     def attack_weight(self, *attack):
-        direct_bonus_value = self.direct_bonus(attack[2])
-        chance_ratio_value = self.chance_ratio(*attack)
-        conq_chance_value  = self.conquering_chance(*attack)
-        mission_value      = self.mission_value(attack[2])
-        return (direct_bonus_value * self['att_bonus_wgt'] +
-                chance_ratio_value * self['att_chance_wgt'] +
-                conq_chance_value * self['att_conqc_wgt'] +
-                mission_value * self['att_mis_wgt'])
+        fr_tid, fr_arm, to_tid, to_pid, to_arm = attack
+        return sum((
+            self.direct_bonus(to_tid) * self['att_bonus_wgt'],
+            self.chance_ratio(*attack) * self['att_chance_wgt'],
+            self.conquering_chance(*attack) * self['att_conqc_wgt'],
+            self.mission_value(to_tid) * self['att_mission_wgt'],
+            (fr_arm - 1) * self['att_narmies_wgt'],
+        ))
                                           
     def min_attack_weight(self, won_yet):
-        return self['att_min_val'] + (self['att_won_comp'] if not won_yet else 0.)
+        return self['att_cutoff'] + (self['att_cutoff_win'] if not won_yet else 0.)
 
     def fortify(self):
         possible_fortifications = self.possible_fortifications()
@@ -385,6 +390,8 @@ class GeneticPlayer (Player, genome.Genome, BasicFortifyMixin):
         return sum((
                 (self.army_vantage(fr_tid) - self.army_vantage(to_tid)) * self['ft_avantage_wgt'],
                 (self.territory_vantage(fr_tid) - self.territory_vantage(to_tid)) * self['ft_tvantage_wgt'],
+                (self.mission_value(fr_tid) - self.mission_value(to_tid)) * self['ft_mission_wgt'],
+                (self.direct_bonus(fr_tid) - self.direct_bonus(to_tid)) * self['ft_bonus_wgt'],
                 (fr_arm - 1) * self['ft_narmies_wgt']
         ))
     
