@@ -345,6 +345,7 @@ class Board (object):
         implot = plt.imshow(im)
         for territory, owner, armies in self.data:
             self.plot_single(territory, owner, armies)
+        plt.axis('off')
         
     def plot_single(self, territory_id, player_id, armies):
         """ Plot a single army dot.
