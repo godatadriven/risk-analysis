@@ -1,5 +1,6 @@
-import unittest
 import random
+import unittest
+
 from board import Board
 from cards import Cards
 

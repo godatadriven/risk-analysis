@@ -1,7 +1,9 @@
-import definitions
 import os
 import random
+
 import matplotlib.pyplot as plt
+
+import definitions
 
 
 class Board(object):
