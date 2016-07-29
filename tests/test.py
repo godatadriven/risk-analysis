@@ -1,6 +1,7 @@
 import random
 import unittest
 
+import definitions
 from board import Board
 from cards import Cards
 from missions import missions
@@ -77,6 +78,19 @@ class TestCards(unittest.TestCase):
         self.assertFalse(c.obligatory_turn_in)
         self.assertEqual(len(c.complete_sets), 0)
 
+
+class TestDefinitions(unittest.TestCase):
+
+    def test_territories(self):
+        for i in range(42):
+            self.assertEqual(type(definitions.territory_names[i]), str)
+            self.assertIn(i, definitions.territory_continents.keys())
+
+    def test_neighbors(self):
+        for i in range(42):
+            neighbors = definitions.territory_neighbors[i]
+            for neighbor in neighbors:
+                self.assertIn(i, definitions.territory_neighbors[neighbor])
 
 class TestMission(unittest.TestCase):
 
