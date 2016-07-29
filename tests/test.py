@@ -3,6 +3,7 @@ import unittest
 
 from board import Board
 from cards import Cards
+from missions import missions
 
 
 class TestBoard(unittest.TestCase):
@@ -45,6 +46,7 @@ class TestBoard(unittest.TestCase):
         b = Board.create(5)
         self.assertEqual(len(tuple(b.neighbors(0))), 5)
 
+
 class TestCards(unittest.TestCase):
 
     def test_empty(self):
@@ -74,6 +76,19 @@ class TestCards(unittest.TestCase):
         c.turn_in('artillery')
         self.assertFalse(c.obligatory_turn_in)
         self.assertEqual(len(c.complete_sets), 0)
+
+
+class TestMission(unittest.TestCase):
+
+    def test_evaluate(self):
+        b = Board(list((i, 0, 2) for i in range(42)))
+        all_missions = missions(2)
+        for m in all_missions:
+            m.assign_to(0)
+            self.assertTrue(m.evaluate(b))
+            m.assign_to(1)
+            self.assertFalse(m.evaluate(b))
+
 
 if __name__ == '__main__':
     unittest.main()
