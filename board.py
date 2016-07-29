@@ -414,7 +414,7 @@ class Board(object):
         Returns:
             int: Number of armies owned by the player.
         """
-        return sum((t.armies for t in self.data if pid == player_id))
+        return sum((t.armies for t in self.data if t.player_id == player_id))
 
     def n_territories(self, player_id):
         """

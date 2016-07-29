@@ -4,7 +4,9 @@ import unittest
 import definitions
 from board import Board, Territory
 from cards import Cards
+from game import Game
 from missions import missions
+from player import Player, RandomPlayer
 
 
 class TestBoard(unittest.TestCase):
@@ -91,6 +93,26 @@ class TestDefinitions(unittest.TestCase):
             neighbors = definitions.territory_neighbors[i]
             for neighbor in neighbors:
                 self.assertIn(i, definitions.territory_neighbors[neighbor])
+
+class TestGame(unittest.TestCase):
+
+    def test_play(self):
+        random.seed(0)
+        for i in [3, 4, 5, 6]:
+            players = [Player() for _ in range(i)]
+            g = Game.create(players)
+            g.initialize_armies()
+            for _ in range(1000):
+                g.play_turn()
+
+    def test_play_random(self):
+        random.seed(0)
+        for i in [3, 4, 5, 6]:
+            players = [RandomPlayer() for _ in range(i)]
+            g = Game.create(players)
+            g.initialize_armies()
+            while not g.has_ended():
+                g.play_turn()
 
 class TestMission(unittest.TestCase):
 

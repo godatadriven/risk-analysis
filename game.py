@@ -1,18 +1,19 @@
 import random
 
-import definitions
-import cards
-import missions
-import board
 import matplotlib.pyplot as plt
 from matplotlib.font_manager import FontProperties
 
+import board
+import cards
+import definitions
+import missions
 
-class Game (object):
+
+class Game(object):
     """ The Game object handles all aspects of a Risk game. It contains one Board
         object and a Cards object for each player. The Game also contains a Player
         object for each player, which it asks for decisions during each game step. """
-    
+
     def __init__(self, board, cards, missions, players, turn):
         """ Initialize the Game. 
         
@@ -22,19 +23,19 @@ class Game (object):
                 missions (list): list of Mission objects, one for each player.
                 players (list): list of Player objects.
                 turn (int): current turn number. """
-        self.board    = board
-        self.cards    = cards
+        self.board = board
+        self.cards = cards
         self.missions = missions
-        self.players  = players
-        self.turn     = turn
+        self.players = players
+        self.turn = turn
         self.assign_players()
-        
+
     def assign_players(self):
         """ Assign respective missions to players, and have each player join the game. """
         for pid, player in enumerate(self.players):
-            player.join(pid, self.board, self.cards[pid], self.missions[pid])
+            player.join(self, pid)
             self.missions[pid].assign_to(pid)
-       
+
     @classmethod
     def create(cls, players):
         """ Create a new Game.
@@ -46,13 +47,13 @@ class Game (object):
                 Game: newly initialized Game object. """
         n_players = len(players)
         return cls(
-            board    = board.Board.create(n_players),
-            cards    = cls.assign_cards(n_players),
-            missions = cls.assign_missions(n_players),
-            players  = players,
-            turn     = -1
+            board=board.Board.create(n_players),
+            cards=cls.assign_cards(n_players),
+            missions=cls.assign_missions(n_players),
+            players=players,
+            turn=-1
         )
-    
+
     @staticmethod
     def assign_cards(n_players):
         """ Assign reinforcement card hands to players. """
@@ -73,7 +74,7 @@ class Game (object):
         while self.initialize_single_army():
             continue
         self.next_turn()
-            
+
     def initialize_single_army(self):
         """ Have each player place one army on the board, if they have one left. 
         
@@ -86,7 +87,7 @@ class Game (object):
                 territory_id = player.reinforce()
                 self.board.add_armies(territory_id, 1)
                 changed = True
-        return changed 
+        return changed
 
     @property
     def current_player_id(self):
@@ -95,7 +96,7 @@ class Game (object):
             Returns:
                 int: player_id whose turn it is. """
         return self.turn % self.n_players if self.turn >= 0 else None
- 
+
     @property
     def current_player(self):
         """ Return the player of the current turn.
@@ -163,7 +164,7 @@ class Game (object):
             self.missions[player_id].evaluate(self.board) or
             self.board.n_territories(player_id) == 42
         )
-    
+
     def is_alive(self, player_id):
         """ Checks if a player is still alive.
         
@@ -171,13 +172,13 @@ class Game (object):
                 player_id (int): the player id of the player to check.
                 
             Returns:
-                bool: True if the player has armies left, else False. """        
+                bool: True if the player has armies left, else False. """
         return self.board.n_territories(player_id) > 0
 
     # ================== #
     # == Turn methods == #
     # ================== #
-    
+
     def play_turn(self):
         """ Play a turn.
             The turn consists of three stages:
@@ -188,8 +189,8 @@ class Game (object):
         self.reinforce(self.current_player)
         self.attack(self.current_player)
         self.fortify(self.current_player)
-        self.next_turn()   
-    
+        self.next_turn()
+
     def reinforce(self, player):
         """ Handle the reinforcement phase of a player.
             The reinforcement stage consists of two parts:
@@ -209,8 +210,8 @@ class Game (object):
         if card_set is None: return
         n_extra = self.cards[player.player_id].turn_in(card_set)
         for i in range(n_extra):
-            self.board.add_armies(player.reinforce(), 1)    
-    
+            self.board.add_armies(player.reinforce(), 1)
+
     def attack(self, player):
         """ Handle the attack phase of a player.
             The player may perform as many attacks as he wishes.
@@ -228,7 +229,7 @@ class Game (object):
                 did_win = True
         if did_win:
             self.cards[player.player_id].receive()
-        
+
     def fortify(self, player):
         """ Handle the fortification phase of a player.
         
