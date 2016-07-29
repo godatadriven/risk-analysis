@@ -1,9 +1,13 @@
 import os
 import random
+from collections import namedtuple
 
 import matplotlib.pyplot as plt
 
 import definitions
+
+Territory = namedtuple('Territory', ['territory_id', 'player_id', 'armies'])
+Move = namedtuple('Attack', ['from_territory_id', 'from_armies', 'to_territory_id', 'to_player_id', 'to_armies'])
 
 
 class Board(object):
@@ -38,7 +42,7 @@ class Board(object):
         """
         allocation = (range(n_players) * 42)[0:42]
         random.shuffle(allocation)
-        return cls([(tid, pid, 1) for tid, pid in enumerate(allocation)])
+        return cls([Territory(territory_id=tid, player_id=pid, armies=1) for tid, pid in enumerate(allocation)])
 
     # ====================== #
     # == Neighbor Methods == #
@@ -52,10 +56,10 @@ class Board(object):
             territory_id (int): ID of the territory to find neighbors of.
 
         Returns:
-            generator: Generator of tuples of the form (territory_id, player_id, armies).
+            generator: Generator of Territories.
         """
         neighbor_ids = definitions.territory_neighbors[territory_id]
-        return ((tid, pid, arm) for (tid, pid, arm) in self.data if tid in neighbor_ids)
+        return (t for t in self.data if t.territory_id in neighbor_ids)
 
     def hostile_neighbors(self, territory_id):
         """
@@ -66,11 +70,11 @@ class Board(object):
             territory_id (int): ID of the territory.
                 
         Returns:
-            generator: Generator of tuples of the form (territory_id, player_id, armies).
+            generator: Generator of Territories.
         """
         player_id = self.owner(territory_id)
         neighbor_ids = definitions.territory_neighbors[territory_id]
-        return ((tid, pid, arm) for (tid, pid, arm) in self.data if (pid != player_id and tid in neighbor_ids))
+        return (t for t in self.data if (t.player_id != player_id and t.territory_id in neighbor_ids))
 
     def friendly_neighbors(self, territory_id):
         """
@@ -85,7 +89,7 @@ class Board(object):
         """
         player_id = self.owner(territory_id)
         neighbor_ids = definitions.territory_neighbors[territory_id]
-        return ((tid, pid, arm) for (tid, pid, arm) in self.data if (pid == player_id and tid in neighbor_ids))
+        return (t for t in self.data if (t.player_id == player_id and t.territory_id in neighbor_ids))
 
     # ======================= #
     # == Continent Methods == #
@@ -99,10 +103,9 @@ class Board(object):
             continent_id (int): ID of the continent.
 
         Returns:
-            generator: Generator of tuples of the form (territory_id, player_id, armies).
+            generator: Generator of Territories.
         """
-        return ((tid, pid, arm) for (tid, pid, arm) in self.data if
-                tid in definitions.continent_territories[continent_id])
+        return (t for t in self.data if t.territory_id in definitions.continent_territories[continent_id])
 
     def n_continents(self, player_id):
         """
@@ -127,7 +130,7 @@ class Board(object):
         Returns:
             bool: True if the player owns all of the continent's territories.
         """
-        return all((pid == player_id for (tid, pid, arm) in self.continent(continent_id)))
+        return all((t.player_id == player_id for t in self.continent(continent_id)))
 
     def continent_owner(self, continent_id):
         """
@@ -140,7 +143,7 @@ class Board(object):
         Returns:
             int/None: Player_id if a player owns all territories, else None.
         """
-        pids = set([pid for (tid, pid, arm) in self.continent(continent_id)])
+        pids = set([t.player_id for t in self.continent(continent_id)])
         if len(pids) == 1:
             return pids.pop()
         return None
@@ -157,7 +160,7 @@ class Board(object):
             float: The fraction of the continent owned by the player.
         """
         c_data = list(self.continent(continent_id))
-        p_data = [(tid, pid, arm) for (tid, pid, arm) in c_data if pid == player_id]
+        p_data = [t for t in c_data if t.player_id == player_id]
         return float(len(p_data)) / len(c_data)
 
     def num_foreign_continent_territories(self, continent_id, player_id):
@@ -171,9 +174,7 @@ class Board(object):
         Returns:
             int: The number of territories on the continent owned by other players.
         """
-        return sum(1 if pid != player_id else 0
-                   for (tid, pid, arm)
-                   in self.continent(continent_id))
+        return sum(1 if t.player_id != player_id else 0 for t in self.continent(continent_id))
 
     # ==================== #
     # == Action Methods == #
@@ -204,12 +205,10 @@ class Board(object):
             player_id (int): ID of the attacking player.
 
         Returns:
-            list: each entry is an attack in the form of a tuple:
-                (from_territory_id, from_armies, to_territory_id, to_player_id, to_armies).
+            list: List of Moves.
         """
-        return [(fr_tid, fr_arm, to_tid, to_pid, to_arm) for
-                (fr_tid, fr_pid, fr_arm) in self.mobile(player_id) for
-                (to_tid, to_pid, to_arm) in self.hostile_neighbors(fr_tid)]
+        return [Move(from_t.territory_id, from_t.armies, to_t.territory_id, to_t.player_id, to_t.armies)
+                for from_t in self.mobile(player_id) for to_t in self.hostile_neighbors(from_t.territory_id)]
 
     def possible_fortifications(self, player_id):
         """
@@ -219,12 +218,10 @@ class Board(object):
             player_id (int): ID of the attacking player.
 
         Returns:
-            list: each entry is an attack in the form of a tuple:
-                (from_territory_id, from_armies, to_territory_id, to_player_id, to_armies).
+            list: List of Moves.
         """
-        return [(fr_tid, fr_arm, to_tid, to_pid, to_arm) for
-                (fr_tid, fr_pid, fr_arm) in self.mobile(player_id) for
-                (to_tid, to_pid, to_arm) in self.friendly_neighbors(fr_tid)]
+        return [Move(from_t.territory_id, from_t.armies, to_t.territory_id, to_t.player_id, to_t.armies)
+                for from_t in self.mobile(player_id) for to_t in self.friendly_neighbors(from_t.territory_id)]
 
     def fortify(self, from_territory, to_territory, n_armies):
         """
@@ -242,7 +239,7 @@ class Board(object):
         if n_armies < 0 or self.armies(from_territory) <= n_armies:
             raise ValueError('Board: Cannot move {n} armies from territory {tid}.'
                              .format(n=n_armies, tid=from_territory))
-        if to_territory not in [tid for (tid, _, _) in self.friendly_neighbors(from_territory)]:
+        if to_territory not in [t.territory_id for t in self.friendly_neighbors(from_territory)]:
             raise ValueError('Board: Cannot fortify, territories do not share owner and/or border.')
         self.add_armies(from_territory, -n_armies)
         self.add_armies(to_territory, +n_armies)
@@ -289,8 +286,8 @@ class Board(object):
         im = plt.imread(os.getcwd() + '/risk.png')
         plt.figure(figsize=(16, 24))
         _ = plt.imshow(im)
-        for territory, owner, armies in self.data:
-            self.plot_single(territory, owner, armies)
+        for t in self.data:
+            self.plot_single(t.territory_id, t.player_id, t.armies)
         plt.axis('off')
 
     @staticmethod
@@ -355,7 +352,7 @@ class Board(object):
         Returns:
             int: Player_id that owns the territory.
         """
-        return self.data[territory_id][1]
+        return self.data[territory_id].player_id
 
     def armies(self, territory_id):
         """
@@ -367,7 +364,7 @@ class Board(object):
         Returns:
             int: Number of armies in the territory.
         """
-        return self.data[territory_id][2]
+        return self.data[territory_id].armies
 
     def set_owner(self, territory_id, player_id):
         """
@@ -377,7 +374,7 @@ class Board(object):
             territory_id (int): ID of the territory.
             player_id (int): ID of the player.
         """
-        self.data[territory_id] = (territory_id, player_id, self.armies(territory_id))
+        self.data[territory_id] = Territory(territory_id, player_id, self.armies(territory_id))
 
     def set_armies(self, territory_id, n):
         """
@@ -392,7 +389,7 @@ class Board(object):
         """
         if n < 1:
             raise ValueError('Board: cannot set the number of armies to <1 ({tid}, {n}).'.format(tid=territory_id, n=n))
-        self.data[territory_id] = (territory_id, self.owner(territory_id), n)
+        self.data[territory_id] = Territory(territory_id, self.owner(territory_id), n)
 
     def add_armies(self, territory_id, n):
         """
@@ -417,7 +414,7 @@ class Board(object):
         Returns:
             int: Number of armies owned by the player.
         """
-        return sum((arm for tid, pid, arm in self.data if pid == player_id))
+        return sum((t.armies for t in self.data if pid == player_id))
 
     def n_territories(self, player_id):
         """
@@ -429,7 +426,7 @@ class Board(object):
         Returns:
             int: Number of territories owned by the player.
         """
-        return len([pid for tid, pid, arm in self.data if pid == player_id])
+        return len([None for t in self.data if t.player_id == player_id])
 
     def territories_of(self, player_id):
         """
@@ -441,7 +438,7 @@ class Board(object):
         Returns:
             list: List of all territory IDs owner by the player.
         """
-        return [tid for (tid, pid, arm) in self.data if pid == player_id]
+        return [t.territory_id for t in self.data if t.player_id == player_id]
 
     def mobile(self, player_id):
         """
@@ -452,6 +449,6 @@ class Board(object):
             player_id (int): ID of the attacking player.
 
         Returns:
-            generator: Generator of tuples of the form (territory_id, player_id, armies).
+            generator: Generator of Territories.
         """
-        return ((tid, pid, arm) for (tid, pid, arm) in self.data if (pid == player_id and arm > 1))
+        return (t for t in self.data if (t.player_id == player_id and t.armies > 1))

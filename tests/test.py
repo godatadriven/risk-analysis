@@ -2,7 +2,7 @@ import random
 import unittest
 
 import definitions
-from board import Board
+from board import Board, Territory
 from cards import Cards
 from missions import missions
 
@@ -95,7 +95,7 @@ class TestDefinitions(unittest.TestCase):
 class TestMission(unittest.TestCase):
 
     def test_evaluate(self):
-        b = Board(list((i, 0, 2) for i in range(42)))
+        b = Board(list(Territory(i, 0, 2) for i in range(42)))
         all_missions = missions(2)
         for m in all_missions:
             m.assign_to(0)
