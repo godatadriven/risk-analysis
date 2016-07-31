@@ -177,6 +177,7 @@ class Player(object):
             return max(complete_sets.items(), key=lambda x: x[1])[0]
         return None
 
+
 class SmartPlayer(Player):
     """
     The SmartPlayer builds on the Player object and adds many methods
@@ -221,8 +222,6 @@ class SmartPlayer(Player):
         """
         return self.army_vantage(move.from_territory_id) - self.army_vantage(move.to_territory_id)
 
-    chances = [[1.41, 0.73, 0.52], [2.89, 1.57, 0.85]]
-
     @classmethod
     def chance_ratio(cls, move):
         """
@@ -232,7 +231,8 @@ class SmartPlayer(Player):
         Returns:
             float: chance ratio, where lower is better [0.5, 3].
         """
-        return cls.chances[min(move.to_armies - 1, 1)][min(move.from_armies - 2, 2)]
+        chances = [[1.41, 0.73, 0.52], [2.89, 1.57, 0.85]]
+        return chances[min(move.to_armies - 1, 1)][min(move.from_armies - 2, 2)]
 
     @staticmethod
     def conquering_chance(move):
@@ -333,6 +333,23 @@ class SmartPlayer(Player):
 
 class RandomPlayer(Player):
 
+    def attack(self, won_yet):
+        """
+        Randomly decide whether to make an attack.
+
+        Args:
+            won_yet (bool): Ignored.
+
+        Returns:
+            tuple/None: Tuple of the form (from_territory_id, to_territory_id, num_armies).
+        """
+        if random.random() > 0.90 and self.board.n_armies(self.player_id) < 50:
+            return None
+        if len(self.attacks) == 0:
+            return None
+        attack = random.choice(self.attacks)
+        return attack.from_territory_id, attack.to_territory_id, attack.from_armies - 1
+
     def reinforce(self):
         return random.choice(self.territories)
 
@@ -342,14 +359,6 @@ class RandomPlayer(Player):
             return None
         return random.choice(complete_sets)
 
-    def attack(self, won_yet):
-        if random.random() > 0.90 and self.board.n_armies(self.player_id) < 50:
-            return None
-        if len(self.attacks) == 0:
-            return None
-        attack = random.choice(self.attacks)
-        return attack.from_territory_id, attack.to_territory_id, attack.from_armies - 1
-
     def fortify(self):
         possible_fortifications = self.fortifications
         if len(possible_fortifications) == 0:
@@ -358,27 +367,6 @@ class RandomPlayer(Player):
         return fr_tid, to_tid, random.randint(1, fr_arm - 1)
 
 
-
-class BasicAttackMixin(object):
-    def attack(self, won_yet):
-        possible_attacks = self.possible_attacks()
-        if len(possible_attacks) == 0: return None
-        attack = max(possible_attacks,
-                     key=lambda x: self.army_ratio(*x))
-        if self.army_ratio(*attack) < 1: return None
-        fr_tid, fr_arm, to_tid, to_pid, to_arm = attack
-        return fr_tid, to_tid, fr_arm - 1
-
-
-class BasicFortifyMixin(object):
-    def fortify(self):
-        possible_fortifications = self.possible_fortifications()
-        if len(possible_fortifications) == 0:
-            return None
-        fortification = max(possible_fortifications,
-                            key=lambda x: self.army_vantage_ratio(*x))
-        fr_tid, fr_arm, to_tid, to_pid, to_arm = fortification
-        return fr_tid, to_tid, fr_arm - 1
 
 
 class SmartReinforceMixin(object):
@@ -399,113 +387,13 @@ class SmartReinforceMixin(object):
 
 
 
-import genome
 
 
-class GeneticPlayer(Player, genome.Genome, BasicFortifyMixin):
-    specifications = (
-        {'name': 'turn_in_cutoff', 'dtype': list, 'values': [4, 6, 8, 10], 'volatility': 0.01},
 
-        {'name': 'att_bonus_wgt', 'dtype': float, 'min_value': -25., 'max_value': 25.,
-         'volatility': 0.03, 'granularity': 0.10, 'digits': 2},
-        {'name': 'att_chance_wgt', 'dtype': float, 'min_value': -25., 'max_value': 25.,
-         'volatility': 0.03, 'granularity': 0.10, 'digits': 2},
-        {'name': 'att_conqc_wgt', 'dtype': float, 'min_value': -25., 'max_value': 25.,
-         'volatility': 0.03, 'granularity': 0.10, 'digits': 2},
-        {'name': 'att_narmies_wgt', 'dtype': float, 'min_value': -25., 'max_value': 25.,
-         'volatility': 0.03, 'granularity': 0.10, 'digits': 2},
-        {'name': 'att_mission_wgt', 'dtype': list, 'values': [-1, 0, 1], 'volatility': 0.01},
-        {'name': 'att_cutoff', 'dtype': float, 'min_value': -25, 'max_value': +25,
-         'volatility': 0.03, 'granularity': 0.25, 'digits': 1},
-        {'name': 'att_cutoff_win', 'dtype': float, 'min_value': -25, 'max_value': +25,
-         'volatility': 0.015, 'granularity': 0.25, 'digits': 1},
 
-        {'name': 'mis_base_wgt', 'dtype': float, 'min_value': -25, 'max_value': +25,
-         'volatility': 0.01, 'granularity': 0.25, 'digits': 2},
-        {'name': 'mis_cont_wgt', 'dtype': float, 'min_value': -25, 'max_value': +25,
-         'volatility': 0.01, 'granularity': 0.25, 'digits': 2},
-        {'name': 'mis_extr_wgt', 'dtype': float, 'min_value': -25, 'max_value': +25,
-         'volatility': 0.01, 'granularity': 0.25, 'digits': 2},
-        {'name': 'mis_terr_wgt', 'dtype': float, 'min_value': -25, 'max_value': +25,
-         'volatility': 0.01, 'granularity': 0.25, 'digits': 2},
-        {'name': 'mis_play_wgt', 'dtype': list, 'values': [0, 1], 'volatility': 0.005},
 
-        {'name': 're_dbonus_wgt', 'dtype': float, 'min_value': -25., 'max_value': 25.,
-         'volatility': 0.02, 'granularity': 0.10, 'digits': 2},
-        {'name': 're_ibonus_wgt', 'dtype': float, 'min_value': -25., 'max_value': 25.,
-         'volatility': 0.02, 'granularity': 0.10, 'digits': 2},
-        {'name': 're_mission_wgt', 'dtype': list, 'values': [-1, 0, 1], 'volatility': 0.01},
-        {'name': 're_avantage_wgt', 'dtype': float, 'min_value': -25., 'max_value': 25.,
-         'volatility': 0.02, 'granularity': 0.10, 'digits': 2},
-        {'name': 're_tvantage_wgt', 'dtype': float, 'min_value': -25., 'max_value': 25.,
-         'volatility': 0.02, 'granularity': 0.10, 'digits': 2},
 
-        {'name': 'ft_min_wgt', 'dtype': float, 'min_value': -25., 'max_value': 25.,
-         'volatility': 0.01, 'granularity': 0.10, 'digits': 2},
-        {'name': 'ft_avantage_wgt', 'dtype': float, 'min_value': -25., 'max_value': 25.,
-         'volatility': 0.01, 'granularity': 0.10, 'digits': 2},
-        {'name': 'ft_tvantage_wgt', 'dtype': float, 'min_value': -25., 'max_value': 25.,
-         'volatility': 0.01, 'granularity': 0.10, 'digits': 2},
-        {'name': 'ft_mission_wgt', 'dtype': float, 'min_value': -25., 'max_value': 25.,
-         'volatility': 0.01, 'granularity': 0.10, 'digits': 2},
-        {'name': 'ft_bonus_wgt', 'dtype': float, 'min_value': -25., 'max_value': 25.,
-         'volatility': 0.01, 'granularity': 0.10, 'digits': 2},
-        {'name': 'ft_narmies_wgt', 'dtype': list, 'values': [-1, 0, 1], 'volatility': 0.005},
 
-    )
-
-    def mission_value(self, territory_id):
-        if isinstance(self.mission, missions.PlayerMission):
-            if self.mission.target_id == self.player_id:
-                return self['mis_base_wgt'] if (self.board.n_territories(self.player_id) < 24) else 0.
-            else:
-                return self['mis_play_wgt'] if (self.board.owner(territory_id) == self.mission.target_id) else 0.
-        elif isinstance(self.mission, missions.ContinentMission):
-            continent_id = definitions.territory_continents[territory_id]
-            if continent_id in self.mission.continents:
-                return self['mis_cont_wgt']
-            elif isinstance(self.mission, missions.ExtraContinentMission):
-                if not any(self.board.owns_continent(self.player_id, cid) for cid in self.mission.other_continents):
-                    return self['mis_extr_wgt'] * self.board.continent_fraction(continent_id, self.player_id)
-            return 0.
-        elif isinstance(self.mission, missions.BaseMission):
-            return self['mis_base_wgt'] if (self.board.n_territories(self.player_id) < 24) else 0.
-        elif isinstance(self.mission, missions.TerritoryMission):
-            return self['mis_terr_wgt'] if (self.board.n_territories(self.player_id) < 18) else 0.
-        else:
-            raise Exception('Player: unknown mission: {m}'.format(m=self.mission))
-
-    def turn_in_cards(self):
-        complete_sets = {sn: arm for sn, arm in self.cards.complete_sets}
-        if len(complete_sets) == 0: return None
-        best_set, armies = max(complete_sets.items(), key=lambda x: x[1])
-        if self.cards.obligatory_turn_in:
-            return best_set
-        if armies >= self['turn_in_cutoff']:
-            return best_set
-        return None
-
-    def attack(self, won_yet):
-        possible_attacks = self.possible_attacks()
-        if len(possible_attacks) == 0: return None
-        attack = max(possible_attacks,
-                     key=lambda x: self.attack_weight(*x))
-        if self.attack_weight(*attack) < self.min_attack_weight(won_yet): return None
-        fr_tid, fr_arm, to_tid, to_pid, to_arm = attack
-        return fr_tid, to_tid, fr_arm - 1
-
-    def attack_weight(self, *attack):
-        fr_tid, fr_arm, to_tid, to_pid, to_arm = attack
-        return sum((
-            self.direct_bonus(to_tid) * self['att_bonus_wgt'],
-            self.chance_ratio(*attack) * self['att_chance_wgt'],
-            self.conquering_chance(*attack) * self['att_conqc_wgt'],
-            self.mission_value(to_tid) * self['att_mission_wgt'],
-            (fr_arm - 1) * self['att_narmies_wgt'],
-        ))
-
-    def min_attack_weight(self, won_yet):
-        return self['att_cutoff'] + (self['att_cutoff_win'] if not won_yet else 0.)
 
     def fortify(self):
         possible_fortifications = self.possible_fortifications()

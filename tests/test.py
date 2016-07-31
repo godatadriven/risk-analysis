@@ -5,6 +5,7 @@ import definitions
 from board import Board, Territory
 from cards import Cards
 from game import Game
+from genome import Gene, ListGene, Genome
 from missions import missions
 from player import Player, RandomPlayer
 
@@ -94,6 +95,7 @@ class TestDefinitions(unittest.TestCase):
             for neighbor in neighbors:
                 self.assertIn(i, definitions.territory_neighbors[neighbor])
 
+
 class TestGame(unittest.TestCase):
 
     def test_play(self):
@@ -113,6 +115,37 @@ class TestGame(unittest.TestCase):
             g.initialize_armies()
             while not g.has_ended():
                 g.play_turn()
+
+
+class TestGenome(unittest.TestCase):
+
+    def test_gene(self):
+        a = Gene(name='x', min_value=-1., max_value=1., volatility=0.5, granularity=0.1, precision=2)
+        for i in range(1000):
+            v = a.initialize()
+            self.assertGreaterEqual(v, -1.)
+            self.assertLessEqual(v, 1.)
+            v = a.mutate(v)
+            self.assertGreaterEqual(v, -1.)
+            self.assertLessEqual(v, 1.)
+        b = ListGene(name='y', values=[0, 1, 2], volatility=0.5)
+        for i in range(1000):
+            v = b.initialize()
+            self.assertIn(v, [0, 1, 2])
+            v = b.mutate(v)
+            self.assertIn(v, [0, 1, 2])
+
+    def test_genome(self):
+        Genome.specifications = [
+            Gene('x', -1, 1, 0.5, 0.1, 2),
+            Gene('y', -1, 1, 0.5, 0.1, 2),
+            ListGene('z', [3, 4], 0.5)
+        ]
+        g1 = Genome.create()
+        g2 = Genome.create()
+        g3 = g1.combine(g2)
+        _ = g3.mutate()
+
 
 class TestMission(unittest.TestCase):
 
