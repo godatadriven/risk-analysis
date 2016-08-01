@@ -8,6 +8,7 @@ from game import Game
 from genome import Gene, ListGene, Genome
 from missions import missions
 from player import Player, RandomPlayer
+from ranker import TrueskillRanker, RiskRanker
 
 
 class TestBoard(unittest.TestCase):
@@ -158,6 +159,25 @@ class TestMission(unittest.TestCase):
             m.assign_to(1)
             self.assertFalse(m.evaluate(b))
 
+
+class TestRanker(unittest.TestCase):
+
+    def test_tsrank(self):
+        tsr = TrueskillRanker()
+        self.assertEqual(tsr.score(0), 0)
+        tsr.update([0], [1, 2])
+        self.assertEqual(tsr.score(1), tsr.score(2))
+        self.assertGreater(tsr.score(0), tsr.score(1))
+        tsr.update([0], [1, 2])
+        tsr.update([1], [0, 2])
+        self.assertEqual([i for i, _ in tsr.rank()], [0, 1, 2])
+
+    def test_riskrank(self):
+        for n_players in [2, 3, 4, 5, 6]:
+            rr = RiskRanker([RandomPlayer() for _ in range(20)], n_players=n_players)
+            rr.run(1)
+            rank = rr.rank()
+            self.assertEqual(len(rank), 20)
 
 if __name__ == '__main__':
     unittest.main()
