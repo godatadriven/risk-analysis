@@ -330,6 +330,18 @@ class SmartPlayer(Player):
         own_nb = len(list(self.board.friendly_neighbors(territory_id)))
         return float(htl_nb) / (htl_nb + own_nb)
 
+    def territory_vantage_difference(self, move):
+        """
+        Calculate the difference in territory vantage for two territories in a move.
+
+        Args:
+            move (Move): Move to calculate the territory vantage difference for.
+
+        Returns:
+            float: Territory vantage difference.
+        """
+        return self.territory_vantage(move.from_territory_id) - self.territory_vantage(move.to_territory_id)
+
 
 class RandomPlayer(Player):
 
@@ -363,68 +375,7 @@ class RandomPlayer(Player):
         possible_fortifications = self.fortifications
         if len(possible_fortifications) == 0:
             return None
-        fr_tid, fr_arm, to_tid, to_pid, to_arm = random.choice(possible_fortifications)
-        return fr_tid, to_tid, random.randint(1, fr_arm - 1)
-
-
-
-
-class SmartReinforceMixin(object):
-    def territory_weight(self, territory_id):
-        vantage = -self.territory_vantage(territory_id)
-        mission_value = self.mission_value(territory_id)
-        continent_value = self.continent_value(territory_id)
-        return (vantage + mission_value + continent_value / 5.) - 2.
-
-    def reinforce(self):
-        options = self.my_territories()
-        if isinstance(self.mission, missions.TerritoryMission) and len(options) >= 18:
-            options = [o for o in options if self.board.armies(o) < 2]
-            if len(
-                    options) == 0:  # in this case the player has in principle won, but the turn needs to be completed to win
-                options = self.my_territories()
-        return max(options, key=lambda tid: self.territory_weight(tid))
-
-
-
-
-
-
-
-
-
-
-
-    def fortify(self):
-        possible_fortifications = self.possible_fortifications()
-        if len(possible_fortifications) == 0: return None
-        fortification = max(possible_fortifications,
-                            key=lambda x: self.fortification_weight(*x))
-        if self.fortification_weight(*fortification) < self['ft_min_wgt']: return None
-        fr_tid, fr_arm, to_tid, to_pid, to_arm = fortification
-        return fr_tid, to_tid, fr_arm - 1
-
-    def fortification_weight(self, fr_tid, fr_arm, to_tid, to_pid, to_arm):
-        return sum((
-            (self.army_vantage(fr_tid) - self.army_vantage(to_tid)) * self['ft_avantage_wgt'],
-            (self.territory_vantage(fr_tid) - self.territory_vantage(to_tid)) * self['ft_tvantage_wgt'],
-            (self.mission_value(fr_tid) - self.mission_value(to_tid)) * self['ft_mission_wgt'],
-            (self.direct_bonus(fr_tid) - self.direct_bonus(to_tid)) * self['ft_bonus_wgt'],
-            (fr_arm - 1) * self['ft_narmies_wgt']
-        ))
-
-    def reinforce(self):
-        options = self.my_territories()
-        if isinstance(self.mission, missions.TerritoryMission) and len(options) >= 18:
-            options = [o for o in options if self.board.armies(o) < 2]
-            if len(
-                    options) == 0:  # in this case the player has in principle won, but the turn needs to be completed to win
-                options = self.my_territories()
-        return max(options, key=lambda tid: self.reinforce_weight(tid))
-
-    def reinforce_weight(self, territory_id):
-        return sum((self.direct_bonus(territory_id) * self['re_dbonus_wgt'],
-                    self.indirect_bonus(territory_id) * self['re_ibonus_wgt'],
-                    self.mission_value(territory_id) * self['re_mission_wgt'],
-                    self.army_vantage(territory_id) * self['re_avantage_wgt'],
-                    self.territory_vantage(territory_id) * self['re_tvantage_wgt']))
+        fortification = random.choice(possible_fortifications)
+        return (fortification.from_territory_id,
+                fortification.to_territory_id,
+                random.randint(1, fortification.from_armies - 1))
