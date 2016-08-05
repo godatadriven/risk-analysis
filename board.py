@@ -283,7 +283,7 @@ class Board(object):
 
     def plot_board(self):
         """ Plot the board. """
-        im = plt.imread(os.getcwd() + '/risk.png')
+        im = plt.imread(os.getcwd() + '/risk1.png')
         plt.figure(figsize=(16, 24))
         _ = plt.imshow(im)
         for t in self.data:
@@ -301,8 +301,8 @@ class Board(object):
             armies (int): the number of armies.
         """
         coor = definitions.territory_locations[territory_id]
-        plt.scatter([coor[0]], [coor[1]], s=1250, c=definitions.player_colors[player_id])
-        plt.text(coor[0], coor[1] + 25, s=str(armies),
+        plt.scatter([coor[0]*1.2], [coor[1]*1.22], s=1250, c=definitions.player_colors[player_id])
+        plt.text(coor[0]*1.2, coor[1]*1.22 + 25, s=str(armies),
                  color='black' if definitions.player_colors[player_id] in ['yellow', 'pink'] else 'white',
                  ha='center', size=30)
 
