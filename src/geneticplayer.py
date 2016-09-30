@@ -3,7 +3,7 @@ from genome import Gene, ListGene, Genome
 from player import SmartPlayer
 
 
-class GeneticPlayer(SmartPlayer, Genome):
+class GeneticPlayer(Genome, SmartPlayer):
     """
     The GeneticPlayer decides which moves to make based on weights given to each move.
 

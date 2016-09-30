@@ -90,7 +90,7 @@ class PlayerPool(object):
         Returns:
             Initialized player objects.
         """
-        retval = [player_cls.from_dict(g) for g in genes]
+        retval = [player_cls(g) for g in genes]
         retval += [player_cls.create() for _ in range(pool_size - len(retval))]
         return retval
 
