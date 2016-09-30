@@ -283,7 +283,7 @@ class Board(object):
 
     def plot_board(self):
         """ Plot the board. """
-        im = plt.imread(os.getcwd() + '/risk1.png')
+        im = plt.imread(os.getcwd() + 'img/risk.png')
         plt.figure(figsize=(16, 24))
         _ = plt.imshow(im)
         for t in self.data:
